@@ -17,6 +17,7 @@ jobs:
         with:
           repository: jsonql-standard/jsonql-spec
           path: jsonql-spec
+          token: ${{ secrets.PAT_TOKEN }}
           
       - name: Setup Node.js
         uses: actions/setup-node@v3
