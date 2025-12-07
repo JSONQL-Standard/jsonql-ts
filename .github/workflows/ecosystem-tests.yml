@@ -36,7 +36,12 @@ jobs:
           npm ci
           
       - name: Start Server & Run Tests
+        env:
+          JSONQL_DATA_PATH: ${{ github.workspace }}/jsonql-spec/tests/suites/standard/data.json
         run: |
+          # Verify data file exists
+          ls -la $JSONQL_DATA_PATH
+          
           # Start server in background
           cd examples/express-server
           npm start &
