@@ -1,0 +1,19 @@
+{
+  "name": "jsonql-fastify-example",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "ts-node server.ts"
+  },
+  "dependencies": {
+    "@jsonql-standard/jsonql-ts": "file:../../",
+    "fastify": "^4.26.1",
+    "fastify-plugin": "^4.5.1",
+    "sqlite3": "^5.1.7",
+    "sqlite": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

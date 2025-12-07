@@ -1,13 +1,14 @@
-import express from 'express';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 // @ts-ignore
-import { jsonqlExpress, SQLTranspiler, ResultHydrator } from '@jsonql-standard/jsonql-ts';
+import { jsonqlFastify, SQLTranspiler, ResultHydrator } from '@jsonql-standard/jsonql-ts';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import fs from 'fs';
 import path from 'path';
 
-const app = express();
-app.use(express.json());
+const fastify = Fastify({
+  logger: true
+});
 
 // Setup DB
 let db: any;
@@ -23,14 +24,16 @@ let db: any;
   // 1. Check Environment Variable (CI/CD)
   if (process.env.JSONQL_DATA_PATH && fs.existsSync(process.env.JSONQL_DATA_PATH)) {
       dataPath = process.env.JSONQL_DATA_PATH;
-  } 
+  }
   // 2. Check Local Relative Path (Monorepo/Dev)
   else if (!fs.existsSync(dataPath)) {
+      // Try to find it in the workspace relative path if running locally
       const specPath = path.resolve(__dirname, '../../../../jsonql-spec/tests/suites/standard/data.json');
       if (fs.existsSync(specPath)) {
           dataPath = specPath;
       }
   }
+
   if (fs.existsSync(dataPath)) {
     const dataset = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
     
@@ -57,7 +60,7 @@ let db: any;
           await stmt.run(Object.values(row));
       }
       await stmt.finalize();
-      console.log(`Seeded table: ${tableName}`);
+      fastify.log.info(`Seeded table: ${tableName}`);
     }
   } else {
     // Fallback for basic test
@@ -71,19 +74,17 @@ let db: any;
 const transpiler = new SQLTranspiler('sqlite');
 const hydrator = new ResultHydrator();
 
-// Middleware
-app.use(jsonqlExpress());
+// Register Plugin
+fastify.register(jsonqlFastify);
 
 // Endpoint
-app.all('/:resource', async (req: any, res: any) => {
+fastify.all('/:resource', async (req: FastifyRequest, reply: FastifyReply) => {
   try {
-    const resource = req.params.resource;
-    const query = req.jsonql;
+    const { resource } = req.params as any;
+    const query = (req as any).jsonql;
     
-    // Handle case where middleware didn't find a query (e.g. simple GET without params)
-    // For the purpose of this example, we only respond to valid JSONQL queries
     if (!query) {
-        return res.status(400).json({ error: 'No JSONQL query found' });
+        return reply.code(400).send({ error: 'No JSONQL query found' });
     }
 
     const { sql, parameters } = transpiler.transpile(query, resource);
@@ -91,13 +92,20 @@ app.all('/:resource', async (req: any, res: any) => {
     const rows = await db.all(sql, parameters);
     const data = hydrator.hydrate(rows);
     
-    res.json({ data });
+    return { data };
   } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    req.log.error(err);
+    reply.code(500).send({ error: err.message });
   }
 });
 
-app.listen(3000, () => {
-  console.log('Server running on http://localhost:3000');
-});
+// Start
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3000 });
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+start();

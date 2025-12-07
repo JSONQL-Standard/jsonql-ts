@@ -106,6 +106,14 @@ async function getUsers(jsonqlQuery) {
 }
 ```
 
+## Examples
+
+Check out the `examples/` directory for complete reference implementations:
+
+- [Express Server](examples/express-server)
+- [Fastify Server](examples/fastify-server)
+- [NestJS Server](examples/nestjs-server)
+
 ## License
 
 MIT

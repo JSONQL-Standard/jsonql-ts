@@ -1,0 +1,57 @@
+name: Ecosystem Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-express:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Checkout JSONQL Spec
+        uses: actions/checkout@v3
+        with:
+          repository: jsonql-standard/jsonql-spec
+          path: jsonql-spec
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install SDK Dependencies
+        run: npm ci
+        
+      - name: Build SDK
+        run: npm run build
+        
+      - name: Install Example Dependencies
+        run: |
+          cd examples/express-server
+          npm ci
+          
+      - name: Start Server & Run Tests
+        run: |
+          # Start server in background
+          cd examples/express-server
+          npm start &
+          SERVER_PID=$!
+          
+          # Wait for server to be ready
+          sleep 5
+          
+          # Setup Python for test runner
+          cd ../../jsonql-spec
+          pip install requests
+          
+          # Run Tests
+          python3 run_ecosystem_tests.py \
+            --target http://localhost:3000 \
+            --suite-dir tests/suites/standard
+            
+          # Cleanup
+          kill $SERVER_PID
