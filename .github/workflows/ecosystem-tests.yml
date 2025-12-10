@@ -54,10 +54,22 @@ jobs:
           cd ../../jsonql-spec
           pip install requests
           
-          # Run Tests
+          # Run Standard Execution Suite
           python3 run_ecosystem_tests.py \
             --target http://localhost:3000 \
             --suite-dir tests/suites/standard
+
+          # Run HTTP Integration Suite
+          python3 run_ecosystem_tests.py \
+            --target http://localhost:3000 \
+            --file tests/http/integration.json \
+            --mode http
+
+          # Run Security Suite (SQL Injection)
+          python3 run_ecosystem_tests.py \
+            --target http://localhost:3000 \
+            --file tests/suites/security/sql_injection.json \
+            --mode standard
             
           # Cleanup
           kill $SERVER_PID
