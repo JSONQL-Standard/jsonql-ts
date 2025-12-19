@@ -354,6 +354,7 @@ export class JSONQLParser {
   }
 
   private isValidIdentifier(id: string): boolean {
-    return /^[a-zA-Z0-9_]+$/.test(id);
+    // Allow dot notation for nested fields (e.g. "author.name")
+    return /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/.test(id);
   }
 }

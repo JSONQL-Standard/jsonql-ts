@@ -334,42 +334,57 @@ export class JSONQLValidator {
     includes: string[],
     errors: ValidationError[]
   ) {
-    const operator = Object.keys(condition)[0];
-    const value = (condition as any)[operator];
+    const validOperators = [
+      'eq', 'ne', 'gt', 'gte', 'lt', 'lte', 
+      'in', 'nin', 'contains', 'starts', 'ends'
+    ];
 
-    // Validate array operators
-    if ((operator === 'in' || operator === 'nin') && !Array.isArray(value)) {
-      errors.push({
-        path: `where.${field}.${operator}`,
-        message: `Operator "${operator}" requires an array value`,
-        code: 'INVALID_OPERATOR_VALUE',
-      });
-    }
+    for (const operator of Object.keys(condition)) {
+      if (!validOperators.includes(operator)) {
+        errors.push({
+          path: `where.${field}.${operator}`,
+          message: `Unknown operator "${operator}"`,
+          code: 'INVALID_OPERATOR',
+        });
+        continue;
+      }
 
-    // Validate string operators
-    if (
-      (operator === 'contains' ||
-        operator === 'starts' ||
-        operator === 'ends') &&
-      typeof value !== 'string'
-    ) {
-      errors.push({
-        path: `where.${field}.${operator}`,
-        message: `Operator "${operator}" requires a string value`,
-        code: 'INVALID_OPERATOR_VALUE',
-      });
-    }
+      const value = (condition as any)[operator];
 
-    // Validate field references
-    if (this.isFieldReference(value)) {
-      this.validateFieldPath(
-        value.field,
-        tableSchema,
-        includes,
-        errors,
-        `where.${field}.${operator}`,
-        'filter'
-      );
+      // Validate array operators
+      if ((operator === 'in' || operator === 'nin') && !Array.isArray(value)) {
+        errors.push({
+          path: `where.${field}.${operator}`,
+          message: `Operator "${operator}" requires an array value`,
+          code: 'INVALID_VALUE',
+        });
+      }
+
+      // Validate string operators
+      if (
+        (operator === 'contains' ||
+          operator === 'starts' ||
+          operator === 'ends') &&
+        typeof value !== 'string'
+      ) {
+        errors.push({
+          path: `where.${field}.${operator}`,
+          message: `Operator "${operator}" requires a string value`,
+          code: 'INVALID_VALUE',
+        });
+      }
+
+      // Validate field references
+      if (this.isFieldReference(value)) {
+        this.validateFieldPath(
+          value.field,
+          tableSchema,
+          includes,
+          errors,
+          `where.${field}.${operator}`,
+          'filter'
+        );
+      }
     }
   }
 

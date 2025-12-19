@@ -1,0 +1,63 @@
+{
+  "users": {
+    "fields": {
+      "id": {
+        "type": "string",
+        "required": true,
+        "allowSelect": true,
+        "allowFilter": true,
+        "allowSort": true
+      },
+      "name": {
+        "type": "string",
+        "allowSelect": true,
+        "allowFilter": true,
+        "validation": {
+          "min": 2,
+          "max": 50
+        }
+      },
+      "email": {
+        "type": "string",
+        "required": true,
+        "allowSelect": true,
+        "allowFilter": true,
+        "validation": {
+          "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+        }
+      },
+      "role": {
+        "type": "string",
+        "allowSelect": true,
+        "allowFilter": true,
+        "validation": {
+          "enum": ["admin", "user", "guest"]
+        }
+      }
+    },
+    "relations": {
+      "posts": {
+        "type": "hasMany",
+        "target": "posts",
+        "foreignKey": "authorId",
+        "allowInclude": true
+      }
+    }
+  },
+  "posts": {
+    "fields": {
+      "id": { "type": "string", "allowSelect": true },
+      "title": { "type": "string", "allowSelect": true, "allowFilter": true },
+      "content": { "type": "string", "allowSelect": true },
+      "authorId": { "type": "string", "allowSelect": true, "allowFilter": true }
+    },
+    "relations": {
+      "author": {
+        "type": "belongsTo",
+        "target": "users",
+        "foreignKey": "authorId",
+        "allowInclude": true
+      }
+    }
+  }
+}

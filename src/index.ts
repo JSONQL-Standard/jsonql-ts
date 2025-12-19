@@ -1,6 +1,15 @@
 export * from './core';
-export * from './hydrator';
+export * from './core';
+export * from './types';
+export * from './parser';
+export * from './validator';
 export * from './transpiler';
+export * from './hydrator';
+export * from './builder';
+export * from './schema/introspector';
+export * from './schema/manager';
+export * from './schema/sqlite-introspector';
+
 export * from './adapters/express';
 export * from './adapters/fastify';
 export * from './adapters/nestjs';
