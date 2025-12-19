@@ -1,36 +1,33 @@
-import { Database } from 'sqlite';
+import { DatabaseDriver } from '../driver';
 import { JSONQLIntrospector } from './introspector';
 import { JSONQLSchema, JSONQLFieldSchema } from '../types';
 
 export class SQLiteIntrospector implements JSONQLIntrospector {
-  private db: Database;
-
-  constructor(db: Database) {
-    this.db = db;
-  }
+  constructor(private driver: DatabaseDriver) {}
 
   async introspect(): Promise<JSONQLSchema> {
     const schema: JSONQLSchema = {};
 
     // 1. Get all tables
-    const tables = await this.db.all(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+    const tables = await this.driver.query(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`,
+      [],
     );
 
     for (const table of tables) {
       const tableName = table.name;
       schema[tableName] = {
         fields: {},
-        relations: {} // Relations are harder in SQLite without FK introspection, skipping for basic example
+        relations: {}, // Relations are harder in SQLite without FK introspection, skipping for basic example
       };
 
       // 2. Get columns for each table
-      const columns = await this.db.all(`PRAGMA table_info("${tableName}")`);
+      const columns = await this.driver.query(`PRAGMA table_info("${tableName}")`, []);
 
       for (const col of columns) {
         const fieldName = col.name;
         const type = this.mapSQLiteType(col.type);
-        
+
         const fieldSchema: JSONQLFieldSchema = {
           type: type,
           nullable: col.notnull === 0,
@@ -41,7 +38,7 @@ export class SQLiteIntrospector implements JSONQLIntrospector {
         };
 
         if (col.pk === 1) {
-            // Primary key specific logic if needed
+          // Primary key specific logic if needed
         }
 
         schema[tableName].fields[fieldName] = fieldSchema;
@@ -51,9 +48,16 @@ export class SQLiteIntrospector implements JSONQLIntrospector {
     return schema;
   }
 
-  private mapSQLiteType(sqliteType: string): 'string' | 'number' | 'boolean' | 'date' | 'object' | 'array' {
+  private mapSQLiteType(
+    sqliteType: string,
+  ): 'string' | 'number' | 'boolean' | 'date' | 'object' | 'array' {
     const type = sqliteType.toUpperCase();
-    if (type.includes('INT') || type.includes('REAL') || type.includes('FLOAT') || type.includes('DOUBLE')) {
+    if (
+      type.includes('INT') ||
+      type.includes('REAL') ||
+      type.includes('FLOAT') ||
+      type.includes('DOUBLE')
+    ) {
       return 'number';
     }
     if (type.includes('CHAR') || type.includes('TEXT') || type.includes('CLOB')) {

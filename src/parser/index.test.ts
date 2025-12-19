@@ -194,10 +194,7 @@ describe('JSONQLParser', () => {
           and: [
             { age: { gte: 18 } },
             {
-              or: [
-                { role: { eq: 'admin' } },
-                { email: { ends: '@company.com' } },
-              ],
+              or: [{ role: { eq: 'admin' } }, { email: { ends: '@company.com' } }],
             },
           ],
         },
@@ -214,101 +211,97 @@ describe('JSONQLParser', () => {
     });
 
     it('should throw error for non-object input', () => {
-      expect(() => parser.parse(null as any)).toThrow(
-        'Query must be an object'
-      );
+      expect(() => parser.parse(null as any)).toThrow('Query must be an object');
     });
 
     it('should throw error for unknown properties', () => {
-      expect(() =>
-        parser.parse({ version: '1.0', unknownProp: 'value' })
-      ).toThrow('Unknown property "unknownProp" in query');
+      expect(() => parser.parse({ version: '1.0', unknownProp: 'value' })).toThrow(
+        'Unknown property "unknownProp" in query',
+      );
     });
 
     it('should throw error for wrong version', () => {
       expect(() => parser.parse({ version: '2.0' as any })).toThrow(
-        'Query version must be "1.0" or "1.1"'
+        'Query version must be "1.0" or "1.1"',
       );
     });
 
     it('should throw error for invalid sort type', () => {
       expect(() => parser.parse({ version: '1.0', sort: 123 as any })).toThrow(
-        'sort must be a string or array of strings'
+        'sort must be a string or array of strings',
       );
     });
 
     it('should throw error for negative limit', () => {
       expect(() => parser.parse({ version: '1.0', limit: -1 })).toThrow(
-        'limit must be a non-negative number'
+        'limit must be a non-negative number',
       );
     });
 
     it('should throw error for negative skip', () => {
       expect(() => parser.parse({ version: '1.0', skip: -1 })).toThrow(
-        'skip must be a non-negative number'
+        'skip must be a non-negative number',
       );
     });
 
     it('should throw error for non-array fields', () => {
-      expect(() =>
-        parser.parse({ version: '1.0', fields: 'id' as any })
-      ).toThrow('fields must be an array of strings');
+      expect(() => parser.parse({ version: '1.0', fields: 'id' as any })).toThrow(
+        'fields must be an array of strings',
+      );
     });
 
     it('should throw error for non-array include', () => {
-      expect(() =>
-        parser.parse({ version: '1.0', include: 'author' as any })
-      ).toThrow('include must be an array of strings or an object');
+      expect(() => parser.parse({ version: '1.0', include: 'author' as any })).toThrow(
+        'include must be an array of strings or an object',
+      );
     });
 
     it('should throw error for empty AND array', () => {
-      expect(() =>
-        parser.parse({ version: '1.0', where: { and: [] } })
-      ).toThrow('and must be a non-empty array');
+      expect(() => parser.parse({ version: '1.0', where: { and: [] } })).toThrow(
+        'and must be a non-empty array',
+      );
     });
 
     it('should throw error for empty OR array', () => {
       expect(() => parser.parse({ version: '1.0', where: { or: [] } })).toThrow(
-        'or must be a non-empty array'
+        'or must be a non-empty array',
       );
     });
 
     it('should throw error for invalid operator', () => {
-      expect(() =>
-        parser.parse({ version: '1.0', where: { age: { invalid: 18 } } })
-      ).toThrow('Unknown operator "invalid" for field "age"');
+      expect(() => parser.parse({ version: '1.0', where: { age: { invalid: 18 } } })).toThrow(
+        'Unknown operator "invalid" for field "age"',
+      );
     });
 
     it('should throw error for invalid operator value types', () => {
-      expect(() =>
-        parser.parse({ version: '1.0', where: { name: { contains: 123 } } })
-      ).toThrow(
-        'Operator "contains" for field "name" must have a string value'
+      expect(() => parser.parse({ version: '1.0', where: { name: { contains: 123 } } })).toThrow(
+        'Operator "contains" for field "name" must have a string value',
+      );
+
+      expect(() => parser.parse({ version: '1.0', where: { status: { in: 'active' } } })).toThrow(
+        'Operator "in" for field "status" must have an array value',
       );
 
       expect(() =>
-        parser.parse({ version: '1.0', where: { status: { in: 'active' } } })
-      ).toThrow('Operator "in" for field "status" must have an array value');
-
-      expect(() =>
-        parser.parse({ version: '1.0', where: { age: { gt: { field: 123 } } } })
+        parser.parse({ version: '1.0', where: { age: { gt: { field: 123 } } } }),
       ).toThrow(
-        'Field reference for operator "gt" on field "age" must have a string field property'
+        'Field reference for operator "gt" on field "age" must have a string field property',
       );
 
       expect(() =>
         parser.parse({
           version: '1.0',
           where: { age: { gt: { field: 'min_age', extra: 'prop' } } },
-        })
+        }),
       ).toThrow(
-        'Field reference for operator "gt" on field "age" must only have a "field" property'
+        'Field reference for operator "gt" on field "age" must only have a "field" property',
       );
     });
 
     it('should enforce default max limit', () => {
       expect(() => parser.parse({ version: '1.0', limit: 1001 })).toThrow(
-        'limit must not exceed 1000'
+        'limit must not exceed 1000',
       );
     });
 
@@ -330,9 +323,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      expect(() => parserWithDepth.parse(deepQuery)).toThrow(
-        'Maximum nesting depth of 2 exceeded'
-      );
+      expect(() => parserWithDepth.parse(deepQuery)).toThrow('Maximum nesting depth of 2 exceeded');
     });
 
     it('should parse query with groupBy', () => {

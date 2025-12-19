@@ -19,14 +19,9 @@ export class JSONQL {
   private parser: JSONQLParser;
   private validator: JSONQLValidator | null;
 
-  constructor(
-    schema?: JSONQLSchema,
-    tableName?: string,
-    options?: JSONQLParserOptions
-  ) {
+  constructor(schema?: JSONQLSchema, tableName?: string, options?: JSONQLParserOptions) {
     this.parser = new JSONQLParser(options);
-    this.validator =
-      schema && tableName ? new JSONQLValidator(schema, tableName) : null;
+    this.validator = schema && tableName ? new JSONQLValidator(schema, tableName) : null;
   }
 
   /**

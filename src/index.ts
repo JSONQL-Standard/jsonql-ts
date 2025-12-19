@@ -9,8 +9,11 @@ export * from './builder';
 export * from './schema/introspector';
 export * from './schema/manager';
 export * from './schema/sqlite-introspector';
+export * from './drivers/sqlite';
+export * from './drivers/postgres';
+export * from './drivers/mysql';
+export * from './driver';
 
 export * from './adapters/express';
 export * from './adapters/fastify';
 export * from './adapters/nestjs';
-

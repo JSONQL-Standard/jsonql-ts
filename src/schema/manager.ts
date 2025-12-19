@@ -64,19 +64,19 @@ export class SchemaManager {
               // Merge field properties (override)
               result[tableName].fields[fieldName] = {
                 ...result[tableName].fields[fieldName],
-                ...fieldSchema
+                ...fieldSchema,
               };
             }
           }
         }
         // Merge relations
         if (tableSchema.relations) {
-            if (!result[tableName].relations) {
-                result[tableName].relations = {};
-            }
-            for (const [relationName, relationSchema] of Object.entries(tableSchema.relations)) {
-                result[tableName].relations![relationName] = relationSchema;
-            }
+          if (!result[tableName].relations) {
+            result[tableName].relations = {};
+          }
+          for (const [relationName, relationSchema] of Object.entries(tableSchema.relations)) {
+            result[tableName].relations![relationName] = relationSchema;
+          }
         }
       }
     }

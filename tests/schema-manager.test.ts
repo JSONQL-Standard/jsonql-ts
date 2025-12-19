@@ -1,5 +1,6 @@
 import { SchemaManager } from '../src/schema/manager';
 import { SQLiteIntrospector } from '../src/schema/sqlite-introspector';
+import { SQLiteDriver } from '../src/drivers/sqlite';
 import { setupSQLiteDB } from './e2e/setup-db';
 import { JSONQLSchema } from '../src/types';
 import * as fs from 'fs';
@@ -7,10 +8,12 @@ import * as path from 'path';
 
 describe('Schema Manager & Introspection', () => {
   let db: any;
+  let driver: SQLiteDriver;
   const tempSchemaPath = path.join(__dirname, 'temp_schema.json');
 
   beforeAll(async () => {
     db = await setupSQLiteDB();
+    driver = new SQLiteDriver(db);
   });
 
   afterAll(() => {
@@ -20,7 +23,7 @@ describe('Schema Manager & Introspection', () => {
   });
 
   it('should introspect SQLite database', async () => {
-    const introspector = new SQLiteIntrospector(db);
+    const introspector = new SQLiteIntrospector(driver);
     const schema = await introspector.introspect();
 
     expect(schema).toHaveProperty('users');
@@ -34,16 +37,16 @@ describe('Schema Manager & Introspection', () => {
     const patch: JSONQLSchema = {
       users: {
         fields: {
-          email: { type: 'string', allowSelect: false } // Override
-        }
-      }
+          email: { type: 'string', allowSelect: false }, // Override
+        },
+      },
     };
     fs.writeFileSync(tempSchemaPath, JSON.stringify(patch));
 
     // 2. Load with Manager
     const manager = new SchemaManager({
-      introspector: new SQLiteIntrospector(db),
-      schemaFilePath: tempSchemaPath
+      introspector: new SQLiteIntrospector(driver),
+      schemaFilePath: tempSchemaPath,
     });
 
     const schema = await manager.load();
@@ -57,14 +60,14 @@ describe('Schema Manager & Introspection', () => {
 
   it('should merge runtime override with highest priority', async () => {
     const manager = new SchemaManager({
-      introspector: new SQLiteIntrospector(db),
+      introspector: new SQLiteIntrospector(driver),
       runtimeSchema: {
         users: {
           fields: {
-            status: { type: 'string', allowSelect: false }
-          }
-        }
-      }
+            status: { type: 'string', allowSelect: false },
+          },
+        },
+      },
     });
 
     const schema = await manager.load();

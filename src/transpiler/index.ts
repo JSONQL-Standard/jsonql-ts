@@ -39,13 +39,13 @@ export class SQLTranspiler {
     // Use dialect quoting
     const quotedTableName = this.dialect.quoteIdentifier(tableName);
     if (!this.isValidIdentifier(tableName)) {
-       // Fallback check if quoting isn't enough or we want to be strict
-       // But really, if we quote, we might allow more chars.
-       // For now, keep strict check but use quoted name in SQL.
-       // Actually, if we quote, we should trust the quoting or the input.
-       // Let's keep the strict check for safety against injection in the identifier itself if quoting is buggy.
+      // Fallback check if quoting isn't enough or we want to be strict
+      // But really, if we quote, we might allow more chars.
+      // For now, keep strict check but use quoted name in SQL.
+      // Actually, if we quote, we should trust the quoting or the input.
+      // Let's keep the strict check for safety against injection in the identifier itself if quoting is buggy.
     }
-    
+
     // ... existing logic but using quoted identifiers ...
     // For this refactor, I will keep the strict check but use the dialect for placeholders.
     // And I will start using quoteIdentifier for the generated SQL.
@@ -58,7 +58,7 @@ export class SQLTranspiler {
 
     // 1. SELECT clause
     let selectParts: string[] = [];
-    
+
     // Handle fields
     if (query.fields && query.fields.length > 0) {
       for (const field of query.fields) {
@@ -78,32 +78,34 @@ export class SQLTranspiler {
         // agg is like { sum: "total" }
         const func = Object.keys(agg)[0]; // sum, count, etc.
         const field = (agg as any)[func];
-        
+
         if (!['sum', 'avg', 'min', 'max', 'count'].includes(func)) {
-             throw new Error(`Unknown aggregate function: ${func}`);
+          throw new Error(`Unknown aggregate function: ${func}`);
         }
-        
+
         const quotedAlias = this.dialect.quoteIdentifier(alias);
-        
+
         if (field === '*') {
-             selectParts.push(`${func.toUpperCase()}(*) AS ${quotedAlias}`);
+          selectParts.push(`${func.toUpperCase()}(*) AS ${quotedAlias}`);
         } else {
-             if (!this.isValidIdentifier(field)) {
-                throw new Error(`Invalid aggregate field: ${field}`);
-             }
-             selectParts.push(`${func.toUpperCase()}(${this.dialect.quoteIdentifier(field)}) AS ${quotedAlias}`);
+          if (!this.isValidIdentifier(field)) {
+            throw new Error(`Invalid aggregate field: ${field}`);
+          }
+          selectParts.push(
+            `${func.toUpperCase()}(${this.dialect.quoteIdentifier(field)}) AS ${quotedAlias}`,
+          );
         }
       }
     }
-    
+
     // Handle groupBy (implicitly adds to select if not present? usually explicit in JSONQL)
     if ((!query.fields || query.fields.length === 0) && query.groupBy) {
-        for (const field of query.groupBy) {
-             const quotedField = this.dialect.quoteIdentifier(field);
-             if (!selectParts.includes(quotedField)) {
-                 selectParts.push(quotedField);
-             }
+      for (const field of query.groupBy) {
+        const quotedField = this.dialect.quoteIdentifier(field);
+        if (!selectParts.includes(quotedField)) {
+          selectParts.push(quotedField);
         }
+      }
     }
 
     let selectClause = selectParts.length > 0 ? selectParts.join(', ') : '*';
@@ -118,17 +120,17 @@ export class SQLTranspiler {
         sql += ` WHERE ${conditions.join(' AND ')}`;
       }
     }
-    
+
     // 3.5 GROUP BY clause
     if (query.groupBy && query.groupBy.length > 0) {
-        const groups: string[] = [];
-        for (const field of query.groupBy) {
-            if (!this.isValidIdentifier(field)) {
-                throw new Error(`Invalid groupBy field: ${field}`);
-            }
-            groups.push(this.dialect.quoteIdentifier(field));
+      const groups: string[] = [];
+      for (const field of query.groupBy) {
+        if (!this.isValidIdentifier(field)) {
+          throw new Error(`Invalid groupBy field: ${field}`);
         }
-        sql += ` GROUP BY ${groups.join(', ')}`;
+        groups.push(this.dialect.quoteIdentifier(field));
+      }
+      sql += ` GROUP BY ${groups.join(', ')}`;
     }
 
     // 4. SORT clause
@@ -137,7 +139,7 @@ export class SQLTranspiler {
       if (typeof query.sort === 'string') {
         sortStr = query.sort;
       } else if (Array.isArray(query.sort)) {
-        sortStr = query.sort[0]; 
+        sortStr = query.sort[0];
       }
 
       if (sortStr) {
@@ -174,7 +176,7 @@ export class SQLTranspiler {
       if (!this.isValidIdentifier(field)) {
         throw new Error(`Invalid field name in where: ${field}`);
       }
-      
+
       const quotedField = this.dialect.quoteIdentifier(field);
 
       if (condition && typeof condition === 'object') {
@@ -212,13 +214,13 @@ export class SQLTranspiler {
           parameters.push(condition.lte);
         }
       } else {
-          // Implicit eq
-          if (condition === null) {
-            conditions.push(`${quotedField} IS NULL`);
-          } else {
-            conditions.push(`${quotedField} = ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition);
-          }
+        // Implicit eq
+        if (condition === null) {
+          conditions.push(`${quotedField} IS NULL`);
+        } else {
+          conditions.push(`${quotedField} = ${this.dialect.getPlaceholder(parameters.length)}`);
+          parameters.push(condition);
+        }
       }
     }
 

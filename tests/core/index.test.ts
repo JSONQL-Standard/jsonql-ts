@@ -51,9 +51,7 @@ describe('JSONQL Main Class', () => {
       const jsonql = new JSONQL();
       const query = { version: '1.0' as const };
 
-      expect(() => jsonql.validate(query)).toThrow(
-        'No schema provided for validation'
-      );
+      expect(() => jsonql.validate(query)).toThrow('No schema provided for validation');
     });
 
     it('should validate a query', () => {

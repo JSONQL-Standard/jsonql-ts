@@ -159,10 +159,7 @@ describe('JSONQLQueryBuilder', () => {
     });
 
     it('should create AND condition', () => {
-      const condition = and(
-        field('age', gte(18)),
-        field('status', eq('active'))
-      );
+      const condition = and(field('age', gte(18)), field('status', eq('active')));
 
       expect(condition).toEqual({
         and: [{ age: { gte: 18 } }, { status: { eq: 'active' } }],
@@ -170,10 +167,7 @@ describe('JSONQLQueryBuilder', () => {
     });
 
     it('should create OR condition', () => {
-      const condition = or(
-        field('role', eq('admin')),
-        field('role', eq('moderator'))
-      );
+      const condition = or(field('role', eq('admin')), field('role', eq('moderator')));
 
       expect(condition).toEqual({
         or: [{ role: { eq: 'admin' } }, { role: { eq: 'moderator' } }],
@@ -196,8 +190,8 @@ describe('JSONQLQueryBuilder', () => {
         .where(
           and(
             field('age', gte(18)),
-            or(field('role', eq('admin')), field('email', ends('@company.com')))
-          )
+            or(field('role', eq('admin')), field('email', ends('@company.com'))),
+          ),
         )
         .sort('name', '-created_at')
         .limit(10)

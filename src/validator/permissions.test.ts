@@ -13,24 +13,24 @@ const schema: JSONQLSchema = {
       salary: { type: 'number', allowSelect: false, allowAggregate: true }, // Can aggregate but not select
       score: { type: 'number', allowGroup: false }, // Cannot group by
       views: { type: 'number', allowSum: false }, // Cannot sum, but can count/avg
-      rating: { type: 'number', allowAggregate: false, allowAvg: true } // Can only avg
+      rating: { type: 'number', allowAggregate: false, allowAvg: true }, // Can only avg
     },
     relations: {
       posts: { type: 'hasMany', target: 'posts' },
-      secrets: { type: 'hasOne', target: 'secrets', allowInclude: false } // Restricted relation
-    }
+      secrets: { type: 'hasOne', target: 'secrets', allowInclude: false }, // Restricted relation
+    },
   },
   posts: {
     fields: {
       id: { type: 'number' },
-      title: { type: 'string' }
-    }
+      title: { type: 'string' },
+    },
   },
   secrets: {
     fields: {
-      key: { type: 'string' }
-    }
-  }
+      key: { type: 'string' },
+    },
+  },
 };
 
 describe('JSONQLValidator Permissions', () => {
@@ -38,14 +38,14 @@ describe('JSONQLValidator Permissions', () => {
 
   test('should allow selecting allowed fields', () => {
     const result = validator.validate({
-      fields: ['id', 'name']
+      fields: ['id', 'name'],
     });
     expect(result.valid).toBe(true);
   });
 
   test('should disallow selecting restricted fields', () => {
     const result = validator.validate({
-      fields: ['id', 'email']
+      fields: ['id', 'email'],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -55,8 +55,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should disallow filtering on restricted fields', () => {
     const result = validator.validate({
       where: {
-        password: { eq: '123456' }
-      }
+        password: { eq: '123456' },
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -65,7 +65,7 @@ describe('JSONQLValidator Permissions', () => {
 
   test('should disallow sorting on restricted fields', () => {
     const result = validator.validate({
-      sort: ['role']
+      sort: ['role'],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -75,8 +75,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should allow filtering on fields allowed for filter but not sort', () => {
     const result = validator.validate({
       where: {
-        role: { eq: 'admin' }
-      }
+        role: { eq: 'admin' },
+      },
     });
     expect(result.valid).toBe(true);
   });
@@ -84,8 +84,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should disallow filtering on fields restricted for filter', () => {
     const result = validator.validate({
       where: {
-        metadata: { eq: {} }
-      }
+        metadata: { eq: {} },
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -94,43 +94,43 @@ describe('JSONQLValidator Permissions', () => {
   test('should allow aggregation on fields with allowAggregate: true', () => {
     const result = validator.validate({
       aggregate: {
-        totalSalary: { sum: 'salary' }
-      }
+        totalSalary: { sum: 'salary' },
+      },
     });
     expect(result.valid).toBe(true);
   });
 
   test('should disallow selection on fields with allowSelect: false even if allowAggregate: true', () => {
     const result = validator.validate({
-      fields: ['salary']
+      fields: ['salary'],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
   });
 
   test('should disallow aggregation on fields with allowAggregate: false (implicit via allowSelect: false)', () => {
-    // If allowAggregate is not set, it might default to allowSelect? 
+    // If allowAggregate is not set, it might default to allowSelect?
     // In our impl, we check allowAggregate explicitly if checkType is 'aggregate'.
     // If allowAggregate is undefined, it passes (default true).
     // Wait, if allowSelect is false, should allowAggregate default to false?
     // Currently implementation treats them independently.
     // Let's test a field that has allowAggregate: false explicitly.
-    
+
     // We need to update schema for this test or add a new field.
     // But we can't modify const schema easily.
     // Let's create a new validator with custom schema for this test.
     const customSchema: JSONQLSchema = {
-        items: {
-            fields: {
-                price: { type: 'number', allowAggregate: false }
-            }
-        }
+      items: {
+        fields: {
+          price: { type: 'number', allowAggregate: false },
+        },
+      },
     };
     const v = new JSONQLValidator(customSchema, 'items');
     const result = v.validate({
-        aggregate: {
-            total: { sum: 'price' }
-        }
+      aggregate: {
+        total: { sum: 'price' },
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -139,14 +139,14 @@ describe('JSONQLValidator Permissions', () => {
 
   test('should allow including allowed relations', () => {
     const result = validator.validate({
-      include: ['posts']
+      include: ['posts'],
     });
     expect(result.valid).toBe(true);
   });
 
   test('should disallow including restricted relations', () => {
     const result = validator.validate({
-      include: ['secrets']
+      include: ['secrets'],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('RELATION_NOT_ALLOWED');
@@ -155,7 +155,7 @@ describe('JSONQLValidator Permissions', () => {
 
   test('should disallow grouping on restricted fields', () => {
     const result = validator.validate({
-      groupBy: ['score']
+      groupBy: ['score'],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -165,8 +165,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should disallow specific aggregation (sum) on restricted fields', () => {
     const result = validator.validate({
       aggregate: {
-        totalViews: { sum: 'views' }
-      }
+        totalViews: { sum: 'views' },
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');
@@ -176,8 +176,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should allow other aggregations (count) when only specific one is restricted', () => {
     const result = validator.validate({
       aggregate: {
-        countViews: { count: 'views' }
-      }
+        countViews: { count: 'views' },
+      },
     });
     expect(result.valid).toBe(true);
   });
@@ -185,8 +185,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should allow specific aggregation (avg) when general aggregate is false', () => {
     const result = validator.validate({
       aggregate: {
-        avgRating: { avg: 'rating' }
-      }
+        avgRating: { avg: 'rating' },
+      },
     });
     expect(result.valid).toBe(true);
   });
@@ -194,8 +194,8 @@ describe('JSONQLValidator Permissions', () => {
   test('should disallow other aggregations (sum) when general aggregate is false', () => {
     const result = validator.validate({
       aggregate: {
-        sumRating: { sum: 'rating' }
-      }
+        sumRating: { sum: 'rating' },
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_ALLOWED');

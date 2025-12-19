@@ -6,9 +6,9 @@ const schema: JSONQLSchema = {
     fields: {
       id: { type: 'number', allowSelect: true, allowFilter: true },
       name: { type: 'string', allowSelect: true, allowFilter: true },
-      role: { type: 'string', allowSelect: true, allowFilter: true }
-    }
-  }
+      role: { type: 'string', allowSelect: true, allowFilter: true },
+    },
+  },
 };
 
 describe('JSONQLValidator Error Codes', () => {
@@ -17,8 +17,8 @@ describe('JSONQLValidator Error Codes', () => {
   it('should return INVALID_OPERATOR for unknown operator', () => {
     const result = validator.validate({
       where: {
-        name: { unknownOp: 'Alice' } as any
-      }
+        name: { unknownOp: 'Alice' } as any,
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('INVALID_OPERATOR');
@@ -28,8 +28,8 @@ describe('JSONQLValidator Error Codes', () => {
   it('should return INVALID_VALUE for wrong type in operator', () => {
     const result = validator.validate({
       where: {
-        name: { in: 'not-an-array' } as any
-      }
+        name: { in: 'not-an-array' } as any,
+      },
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('INVALID_VALUE');
@@ -38,7 +38,7 @@ describe('JSONQLValidator Error Codes', () => {
 
   it('should return FIELD_NOT_FOUND for unknown field', () => {
     const result = validator.validate({
-      fields: ['unknownField']
+      fields: ['unknownField'],
     });
     expect(result.valid).toBe(false);
     expect(result.errors[0].code).toBe('FIELD_NOT_FOUND');

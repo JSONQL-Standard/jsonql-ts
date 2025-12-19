@@ -26,7 +26,7 @@ export class JSONQLParser {
         queryObject = JSON.parse(input);
       } catch (error) {
         throw new Error(
-          `Invalid JSON input: ${error instanceof Error ? error.message : String(error)}`
+          `Invalid JSON input: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     } else {
@@ -64,7 +64,7 @@ export class JSONQLParser {
       'include',
       'groupBy',
       'distinct',
-      'aggregate'
+      'aggregate',
     ]);
     for (const key of Object.keys(obj)) {
       if (!allowedProperties.has(key)) {
@@ -76,7 +76,7 @@ export class JSONQLParser {
     if (obj.version) {
       query.version = obj.version;
     } else if (!isSubQuery) {
-      // Default to 1.1 for top level queries if not specified? 
+      // Default to 1.1 for top level queries if not specified?
       // Or just leave it undefined as per type definition.
       // Let's leave it undefined.
     }
@@ -164,9 +164,7 @@ export class JSONQLParser {
       if (Array.isArray(obj.include)) {
         if (
           this.options.allowedIncludes.length > 0 &&
-          !obj.include.every((i: string) =>
-            this.options.allowedIncludes.includes(i)
-          )
+          !obj.include.every((i: string) => this.options.allowedIncludes.includes(i))
         ) {
           throw new Error('include contains disallowed relation names');
         }
@@ -174,10 +172,13 @@ export class JSONQLParser {
       } else if (typeof obj.include === 'object') {
         const includeMap: any = {};
         for (const [relation, subQuery] of Object.entries(obj.include)) {
-           if (this.options.allowedIncludes.length > 0 && !this.options.allowedIncludes.includes(relation)) {
-             throw new Error(`include contains disallowed relation name: ${relation}`);
-           }
-           includeMap[relation] = this.parseQuery(subQuery, true);
+          if (
+            this.options.allowedIncludes.length > 0 &&
+            !this.options.allowedIncludes.includes(relation)
+          ) {
+            throw new Error(`include contains disallowed relation name: ${relation}`);
+          }
+          includeMap[relation] = this.parseQuery(subQuery, true);
         }
         query.include = includeMap;
       } else {
@@ -215,7 +216,7 @@ export class JSONQLParser {
         const allowedFunctions = new Set(['count', 'sum', 'avg', 'min', 'max']);
         for (const key of Object.keys(func as object)) {
           if (!allowedFunctions.has(key)) {
-             throw new Error(`Unknown aggregate function "${key}"`);
+            throw new Error(`Unknown aggregate function "${key}"`);
           }
         }
       }
@@ -230,9 +231,7 @@ export class JSONQLParser {
    */
   private parseWhere(obj: any, depth: number): JSONQLWhere {
     if (depth > this.options.maxNestingDepth) {
-      throw new Error(
-        `Maximum nesting depth of ${this.options.maxNestingDepth} exceeded`
-      );
+      throw new Error(`Maximum nesting depth of ${this.options.maxNestingDepth} exceeded`);
     }
 
     if (!obj || typeof obj !== 'object') {
@@ -315,27 +314,23 @@ export class JSONQLParser {
         const value = (condition as any)[operator];
         if (['contains', 'starts', 'ends'].includes(operator)) {
           if (typeof value !== 'string') {
-            throw new Error(
-              `Operator "${operator}" for field "${field}" must have a string value`
-            );
+            throw new Error(`Operator "${operator}" for field "${field}" must have a string value`);
           }
         } else if (['in', 'nin'].includes(operator)) {
           if (!Array.isArray(value)) {
-            throw new Error(
-              `Operator "${operator}" for field "${field}" must have an array value`
-            );
+            throw new Error(`Operator "${operator}" for field "${field}" must have an array value`);
           }
         }
         // Validate field reference structure if present
         if (value && typeof value === 'object' && 'field' in value) {
           if (typeof value.field !== 'string') {
             throw new Error(
-              `Field reference for operator "${operator}" on field "${field}" must have a string field property`
+              `Field reference for operator "${operator}" on field "${field}" must have a string field property`,
             );
           }
           if (Object.keys(value).length !== 1) {
             throw new Error(
-              `Field reference for operator "${operator}" on field "${field}" must only have a "field" property`
+              `Field reference for operator "${operator}" on field "${field}" must only have a "field" property`,
             );
           }
         }

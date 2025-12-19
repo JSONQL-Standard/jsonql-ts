@@ -113,12 +113,12 @@ export class JSONQLValidator {
           const relatedTableName = relationSchema.target;
           const subValidator = new JSONQLValidator(this.schema, relatedTableName);
           const subResult = subValidator.validate(subQuery);
-          
+
           if (!subResult.valid) {
             for (const error of subResult.errors) {
               errors.push({
                 ...error,
-                path: `include.${relation}.${error.path}`
+                path: `include.${relation}.${error.path}`,
               });
             }
           }
@@ -135,17 +135,8 @@ export class JSONQLValidator {
     if (query.sort) {
       const sortFields = Array.isArray(query.sort) ? query.sort : [query.sort];
       for (const sortField of sortFields) {
-        const field = sortField.startsWith('-')
-          ? sortField.slice(1)
-          : sortField;
-        this.validateFieldPath(
-          field,
-          tableSchema,
-          includeNames,
-          errors,
-          'sort',
-          'sort'
-        );
+        const field = sortField.startsWith('-') ? sortField.slice(1) : sortField;
+        this.validateFieldPath(field, tableSchema, includeNames, errors, 'sort', 'sort');
       }
     }
 
@@ -167,9 +158,16 @@ export class JSONQLValidator {
     if (query.aggregate) {
       for (const [alias, func] of Object.entries(query.aggregate)) {
         for (const [op, field] of Object.entries(func)) {
-           if (field) {
-             this.validateFieldPath(field, tableSchema, includeNames, errors, `aggregate.${alias}.${op}`, op as any);
-           }
+          if (field) {
+            this.validateFieldPath(
+              field,
+              tableSchema,
+              includeNames,
+              errors,
+              `aggregate.${alias}.${op}`,
+              op as any,
+            );
+          }
         }
       }
     }
@@ -187,15 +185,11 @@ export class JSONQLValidator {
     where: JSONQLWhere,
     tableSchema: any,
     includes: string[],
-    errors: ValidationError[]
+    errors: ValidationError[],
   ) {
     // Check if it's a logical operator
     const logicalWhere = where as JSONQLLogicalOperator;
-    if (
-      'and' in logicalWhere ||
-      'or' in logicalWhere ||
-      'not' in logicalWhere
-    ) {
+    if ('and' in logicalWhere || 'or' in logicalWhere || 'not' in logicalWhere) {
       if ('and' in logicalWhere) {
         for (const subWhere of logicalWhere.and) {
           this.validateWhere(subWhere, tableSchema, includes, errors);
@@ -228,14 +222,14 @@ export class JSONQLValidator {
     includes: string[],
     errors: ValidationError[],
     context: string,
-    checkType?: 'select' | 'filter' | 'sort' | 'group' | 'count' | 'sum' | 'avg' | 'min' | 'max'
+    checkType?: 'select' | 'filter' | 'sort' | 'group' | 'count' | 'sum' | 'avg' | 'min' | 'max',
   ) {
     const checkPermission = (schema: any, type: string) => {
       if (type === 'select' && schema.allowSelect === false) return false;
       if (type === 'filter' && schema.allowFilter === false) return false;
       if (type === 'sort' && schema.allowSort === false) return false;
       if (type === 'group' && schema.allowGroup === false) return false;
-      
+
       if (['count', 'sum', 'avg', 'min', 'max'].includes(type)) {
         const specificProp = `allow${type.charAt(0).toUpperCase() + type.slice(1)}`;
         if (schema[specificProp] === false) return false;
@@ -257,14 +251,14 @@ export class JSONQLValidator {
         });
       } else {
         if (checkType && !checkPermission(fieldSchema, checkType)) {
-           let msg = `Field "${fieldPath}" is not allowed to be used in ${checkType}`;
-           if (['count', 'sum', 'avg', 'min', 'max'].includes(checkType)) {
-               msg = `Field "${fieldPath}" is not allowed to be aggregated with ${checkType}`;
-           } else if (checkType === 'select') {
-               msg = `Field "${fieldPath}" is not allowed to be selected`;
-           }
-           
-           errors.push({
+          let msg = `Field "${fieldPath}" is not allowed to be used in ${checkType}`;
+          if (['count', 'sum', 'avg', 'min', 'max'].includes(checkType)) {
+            msg = `Field "${fieldPath}" is not allowed to be aggregated with ${checkType}`;
+          } else if (checkType === 'select') {
+            msg = `Field "${fieldPath}" is not allowed to be selected`;
+          }
+
+          errors.push({
             path: `${context}.${fieldPath}`,
             message: msg,
             code: 'FIELD_NOT_ALLOWED',
@@ -307,14 +301,14 @@ export class JSONQLValidator {
         });
       } else if (relatedFieldSchema) {
         if (checkType && !checkPermission(relatedFieldSchema, checkType)) {
-           let msg = `Field "${nestedFieldName}" is not allowed to be used in ${checkType}`;
-           if (['count', 'sum', 'avg', 'min', 'max'].includes(checkType)) {
-               msg = `Field "${nestedFieldName}" is not allowed to be aggregated with ${checkType}`;
-           } else if (checkType === 'select') {
-               msg = `Field "${nestedFieldName}" is not allowed to be selected`;
-           }
+          let msg = `Field "${nestedFieldName}" is not allowed to be used in ${checkType}`;
+          if (['count', 'sum', 'avg', 'min', 'max'].includes(checkType)) {
+            msg = `Field "${nestedFieldName}" is not allowed to be aggregated with ${checkType}`;
+          } else if (checkType === 'select') {
+            msg = `Field "${nestedFieldName}" is not allowed to be selected`;
+          }
 
-           errors.push({
+          errors.push({
             path: `${context}.${fieldPath}`,
             message: msg,
             code: 'FIELD_NOT_ALLOWED',
@@ -332,11 +326,20 @@ export class JSONQLValidator {
     condition: JSONQLCondition,
     tableSchema: any,
     includes: string[],
-    errors: ValidationError[]
+    errors: ValidationError[],
   ) {
     const validOperators = [
-      'eq', 'ne', 'gt', 'gte', 'lt', 'lte', 
-      'in', 'nin', 'contains', 'starts', 'ends'
+      'eq',
+      'ne',
+      'gt',
+      'gte',
+      'lt',
+      'lte',
+      'in',
+      'nin',
+      'contains',
+      'starts',
+      'ends',
     ];
 
     for (const operator of Object.keys(condition)) {
@@ -362,9 +365,7 @@ export class JSONQLValidator {
 
       // Validate string operators
       if (
-        (operator === 'contains' ||
-          operator === 'starts' ||
-          operator === 'ends') &&
+        (operator === 'contains' || operator === 'starts' || operator === 'ends') &&
         typeof value !== 'string'
       ) {
         errors.push({
@@ -382,7 +383,7 @@ export class JSONQLValidator {
           includes,
           errors,
           `where.${field}.${operator}`,
-          'filter'
+          'filter',
         );
       }
     }
@@ -393,10 +394,7 @@ export class JSONQLValidator {
    */
   private isFieldReference(value: any): value is JSONQLFieldReference {
     return (
-      value &&
-      typeof value === 'object' &&
-      'field' in value &&
-      typeof value.field === 'string'
+      value && typeof value === 'object' && 'field' in value && typeof value.field === 'string'
     );
   }
 

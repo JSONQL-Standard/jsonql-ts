@@ -1,5 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Controller, Get, MiddlewareConsumer, Module, NestModule, Req, Injectable } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  Req,
+  Injectable,
+} from '@nestjs/common';
 import { JsonqlMiddleware } from '../src/adapters/nestjs';
 import { ResultHydrator } from '../src/hydrator';
 import { SQLTranspiler } from '../src/transpiler';
@@ -35,10 +43,10 @@ class PostsController {
   async findAll(@Req() req: any) {
     const query = req.jsonql;
     const { sql, parameters } = this.transpiler.transpile(query, 'posts');
-    
+
     const flatRows = await this.db.query(sql, parameters);
     const hydrated = this.hydrator.hydrate(flatRows);
-    
+
     return { meta: { query }, data: hydrated };
   }
 }
@@ -50,9 +58,7 @@ class PostsController {
 })
 class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(JsonqlMiddleware)
-      .forRoutes('posts');
+    consumer.apply(JsonqlMiddleware).forRoutes('posts');
   }
 }
 
@@ -66,7 +72,7 @@ describe('NestJS Adapter E2E (SQLite)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-    
+
     // Trigger onModuleInit manually if needed, but Nest usually handles it.
     // However, setupSQLiteDB is async, so we might need to wait or ensure it's done.
     // The DatabaseService.onModuleInit hook is standard NestJS.
@@ -79,17 +85,15 @@ describe('NestJS Adapter E2E (SQLite)', () => {
   });
 
   it('should fetch posts with simple fields', async () => {
-    const q = JSON.stringify({ 
+    const q = JSON.stringify({
       fields: ['title', 'views'],
-      where: { published: true }
+      where: { published: true },
     });
-    
-    const res = await request(app.getHttpServer())
-      .get(`/posts?q=${encodeURIComponent(q)}`);
+
+    const res = await request(app.getHttpServer()).get(`/posts?q=${encodeURIComponent(q)}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThan(0);
     expect(res.body.data[0].title).toBe('Introduction to JSONQL');
   });
 });
-

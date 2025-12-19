@@ -8,9 +8,8 @@ export class JsonqlMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     try {
-      const rawQuery = req.method === 'GET'
-        ? JSON.parse(req.query.q as string || '{}')
-        : req.body;
+      const rawQuery =
+        req.method === 'GET' ? JSON.parse((req.query.q as string) || '{}') : req.body;
 
       const query = this.parser.parse(rawQuery);
       (req as any).jsonql = query;
@@ -18,7 +17,7 @@ export class JsonqlMiddleware implements NestMiddleware {
     } catch (err: any) {
       throw new BadRequestException({
         error: 'Invalid JSONQL Query',
-        details: err.message
+        details: err.message,
       });
     }
   }

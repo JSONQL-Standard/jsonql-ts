@@ -129,10 +129,7 @@ export class JSONQLQueryBuilder {
 /**
  * Helper function to create a field condition
  */
-export function field(
-  fieldName: string,
-  condition: JSONQLCondition
-): JSONQLWhere {
+export function field(fieldName: string, condition: JSONQLCondition): JSONQLWhere {
   return { [fieldName]: condition };
 }
 

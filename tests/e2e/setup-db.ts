@@ -12,7 +12,7 @@ const SPEC_DATA_PATH = '/Users/rlok/Documents/GitHub/jsonql-spec/tests/suites/st
 export async function setupSQLiteDB(): Promise<Database> {
   const db = await open({
     filename: ':memory:', // Use in-memory DB for tests
-    driver: sqlite3.Database
+    driver: sqlite3.Database,
   });
 
   let data: any;
@@ -25,7 +25,7 @@ export async function setupSQLiteDB(): Promise<Database> {
   }
 
   // Create Tables and Seed Data
-  
+
   // Users
   await db.exec(`
     CREATE TABLE users (
@@ -41,7 +41,12 @@ export async function setupSQLiteDB(): Promise<Database> {
     for (const user of data.users) {
       await db.run(
         'INSERT INTO users (id, name, email, status, age, deleted_at) VALUES (?, ?, ?, ?, ?, ?)',
-        user.id, user.name, user.email, user.status, user.age, user.deleted_at
+        user.id,
+        user.name,
+        user.email,
+        user.status,
+        user.age,
+        user.deleted_at,
       );
     }
   }
@@ -60,7 +65,11 @@ export async function setupSQLiteDB(): Promise<Database> {
     for (const post of data.posts) {
       await db.run(
         'INSERT INTO posts (id, user_id, title, views, published) VALUES (?, ?, ?, ?, ?)',
-        post.id, post.user_id, post.title, post.views, post.published
+        post.id,
+        post.user_id,
+        post.title,
+        post.views,
+        post.published,
       );
     }
   }
@@ -79,7 +88,11 @@ export async function setupSQLiteDB(): Promise<Database> {
     for (const comment of data.comments) {
       await db.run(
         'INSERT INTO comments (id, post_id, user_id, content, approved) VALUES (?, ?, ?, ?, ?)',
-        comment.id, comment.post_id, comment.user_id, comment.content, comment.approved
+        comment.id,
+        comment.post_id,
+        comment.user_id,
+        comment.content,
+        comment.approved,
       );
     }
   }
