@@ -7,7 +7,7 @@ import * as path from 'path';
 // For this implementation, I'll embed the data or read it if the path is known.
 // Since we are in the workspace, I can read it from the absolute path provided in context.
 
-const SPEC_DATA_PATH = '/Users/rlok/Documents/GitHub/jsonql-spec/tests/suites/standard/data.json';
+const SPEC_DATA_PATH = path.resolve(__dirname, 'data/data.json');
 
 export async function setupSQLiteDB(): Promise<Database> {
   const db = await open({

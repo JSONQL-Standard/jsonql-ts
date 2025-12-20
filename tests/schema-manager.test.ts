@@ -75,4 +75,40 @@ describe('Schema Manager & Introspection', () => {
     expect(schema.users.fields.status.allowSelect).toBe(false);
     expect(schema.users.fields.name.allowSelect).toBe(true);
   });
+
+  it('should execute lifecycle hooks', async () => {
+    const manager = new SchemaManager({
+      introspector: new SQLiteIntrospector(driver),
+      beforeIntrospect: async (config) => {
+        // Modify config: e.g., add a runtime schema dynamically
+        return {
+          ...config,
+          runtimeSchema: {
+            users: {
+              fields: {
+                dynamic: { type: 'boolean' },
+              },
+            },
+          },
+        };
+      },
+      afterIntrospect: async (schema) => {
+        // Modify schema: e.g., add a virtual field
+        if (schema.users) {
+          schema.users.fields.virtual = { type: 'string' };
+        }
+        return schema;
+      },
+    });
+
+    const schema = await manager.load();
+
+    // Check beforeIntrospect effect (runtimeSchema added)
+    expect(schema.users.fields.dynamic).toBeDefined();
+    expect(schema.users.fields.dynamic.type).toBe('boolean');
+
+    // Check afterIntrospect effect (virtual field added)
+    expect(schema.users.fields.virtual).toBeDefined();
+    expect(schema.users.fields.virtual.type).toBe('string');
+  });
 });
