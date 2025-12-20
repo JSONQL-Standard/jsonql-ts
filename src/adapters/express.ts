@@ -53,21 +53,29 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
         }
       } else {
         // Mode B: Mapping (Object)
-        if (!tableName) {
-          // Resolve from URL alias
-          tableName = this.options.tables[pathName];
-          if (!tableName) {
-             // If strict mapping is enabled, we might want to throw 404 here, 
-             // but returning null allows Express to continue matching other routes if this wasn't a match.
-             // However, if the user sent a JSONQL query body but to a wrong path, maybe we should error?
-             // For now, let's assume if we can't resolve a table, we treat it as "not a jsonql request for this table"
-             // But if 'from' WAS provided, we check below.
+        const mappedTable = this.options.tables[pathName];
+
+        if (mappedTable) {
+          // Case 1: Path matches a defined mapping (e.g. /sales -> orders)
+          if (query.from) {
+             throw { status: 400, error: 'Bad Request', details: `Cannot specify 'from' in a table-specific endpoint. This endpoint is hardcoded to '${mappedTable}'.` };
           }
+          tableName = mappedTable;
         } else {
-          // If 'from' is explicit, ensure it's a valid target in the mapping
-          const allowedTables = Object.values(this.options.tables);
-          if (!allowedTables.includes(tableName)) {
-            throw { status: 403, error: 'Forbidden', details: `Table '${tableName}' is not allowed` };
+          // Case 2: Path does not match a mapping
+          // Only allow 'from' if we are at the root of the mount point
+          if (pathName === '') {
+             if (tableName) {
+                 const allowedTables = Object.values(this.options.tables);
+                 if (!allowedTables.includes(tableName)) {
+                    throw { status: 403, error: 'Forbidden', details: `Table '${tableName}' is not allowed` };
+                 }
+             }
+          } else {
+             // Path is not empty, and not mapped.
+             if (tableName) {
+                 throw { status: 400, error: 'Bad Request', details: `Cannot specify 'from' on non-root endpoint '${pathName}'` };
+             }
           }
         }
       }
@@ -76,6 +84,11 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       if (!tableName) {
         tableName = pathName;
       }
+    }
+
+    // Ensure query has the resolved table name
+    if (tableName && !query.from) {
+      query.from = tableName;
     }
 
     if (this.options.beforeQuery) {
@@ -110,7 +123,7 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       }
 
       // Transpile
-      const { sql, parameters } = this.transpiler.transpile(query, tableName);
+      const { sql, parameters } = this.transpiler.transpile(query, tableName, this.options.schema);
 
       // Execute
       let flatRows: any[] = [];

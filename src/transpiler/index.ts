@@ -1,4 +1,4 @@
-import { JSONQLQuery, JSONQLWhere } from '../types';
+import { JSONQLQuery, JSONQLWhere, JSONQLSchema } from '../types';
 import { SQLDialect, SQLiteDialect } from './dialect';
 
 export interface TranspilationResult {
@@ -35,21 +35,9 @@ export class SQLTranspiler {
     }
   }
 
-  transpile(query: JSONQLQuery, tableName: string): TranspilationResult {
+  transpile(query: JSONQLQuery, tableName: string, schema?: JSONQLSchema): TranspilationResult {
     // Use dialect quoting
     const quotedTableName = this.dialect.quoteIdentifier(tableName);
-    if (!this.isValidIdentifier(tableName)) {
-      // Fallback check if quoting isn't enough or we want to be strict
-      // But really, if we quote, we might allow more chars.
-      // For now, keep strict check but use quoted name in SQL.
-      // Actually, if we quote, we should trust the quoting or the input.
-      // Let's keep the strict check for safety against injection in the identifier itself if quoting is buggy.
-    }
-
-    // ... existing logic but using quoted identifiers ...
-    // For this refactor, I will keep the strict check but use the dialect for placeholders.
-    // And I will start using quoteIdentifier for the generated SQL.
-
     if (!this.isValidIdentifier(tableName)) {
       throw new Error(`Invalid table name: ${tableName}`);
     }
@@ -65,8 +53,11 @@ export class SQLTranspiler {
         if (!this.isValidIdentifier(field)) {
           throw new Error(`Invalid field name: ${field}`);
         }
-        selectParts.push(this.dialect.quoteIdentifier(field));
+        selectParts.push(`${quotedTableName}.${this.dialect.quoteIdentifier(field)}`);
       }
+    } else if (!query.aggregate) {
+      // Default to all fields of the main table if no fields specified and no aggregate
+      selectParts.push(`${quotedTableName}.*`);
     }
 
     // Handle aggregates
@@ -92,7 +83,7 @@ export class SQLTranspiler {
             throw new Error(`Invalid aggregate field: ${field}`);
           }
           selectParts.push(
-            `${func.toUpperCase()}(${this.dialect.quoteIdentifier(field)}) AS ${quotedAlias}`,
+            `${func.toUpperCase()}(${quotedTableName}.${this.dialect.quoteIdentifier(field)}) AS ${quotedAlias}`,
           );
         }
       }
@@ -102,20 +93,36 @@ export class SQLTranspiler {
     if ((!query.fields || query.fields.length === 0) && query.groupBy) {
       for (const field of query.groupBy) {
         const quotedField = this.dialect.quoteIdentifier(field);
-        if (!selectParts.includes(quotedField)) {
-          selectParts.push(quotedField);
+        // Check if already selected (simple check)
+        const fullField = `${quotedTableName}.${quotedField}`;
+        if (!selectParts.includes(fullField)) {
+          selectParts.push(fullField);
         }
       }
     }
 
-    let selectClause = selectParts.length > 0 ? selectParts.join(', ') : '*';
-
     // 2. FROM clause
-    let sql = `SELECT ${selectClause} FROM ${this.dialect.quoteIdentifier(tableName)}`;
+    let sql = `SELECT ${selectParts.join(', ')} FROM ${quotedTableName}`;
+    let joins: string[] = [];
+
+    // Handle Includes (Joins)
+    if (query.include) {
+      if (!schema) {
+        throw new Error('Schema is required for include operations');
+      }
+      this.processIncludes(query, tableName, quotedTableName, schema, selectParts, joins, '', parameters);
+      
+      // Rebuild SELECT with included fields
+      sql = `SELECT ${selectParts.join(', ')} FROM ${quotedTableName}`;
+    }
+
+    if (joins.length > 0) {
+      sql += ` ${joins.join(' ')}`;
+    }
 
     // 3. WHERE clause
     if (query.where) {
-      const conditions = this.parseWhere(query.where, parameters);
+      const conditions = this.parseWhere(query.where, parameters, quotedTableName);
       if (conditions.length > 0) {
         sql += ` WHERE ${conditions.join(' AND ')}`;
       }
@@ -128,7 +135,7 @@ export class SQLTranspiler {
         if (!this.isValidIdentifier(field)) {
           throw new Error(`Invalid groupBy field: ${field}`);
         }
-        groups.push(this.dialect.quoteIdentifier(field));
+        groups.push(`${quotedTableName}.${this.dialect.quoteIdentifier(field)}`);
       }
       sql += ` GROUP BY ${groups.join(', ')}`;
     }
@@ -154,7 +161,7 @@ export class SQLTranspiler {
           throw new Error(`Invalid sort field: ${field}`);
         }
 
-        sql += ` ORDER BY ${this.dialect.quoteIdentifier(field)} ${desc ? 'DESC' : 'ASC'}`;
+        sql += ` ORDER BY ${quotedTableName}.${this.dialect.quoteIdentifier(field)} ${desc ? 'DESC' : 'ASC'}`;
       }
     }
 
@@ -169,17 +176,133 @@ export class SQLTranspiler {
     return { sql, parameters };
   }
 
-  private parseWhere(where: JSONQLWhere, parameters: any[]): string[] {
-    const conditions: string[] = [];
+  private processIncludes(
+    query: JSONQLQuery,
+    parentTable: string,
+    parentAlias: string,
+    schema: JSONQLSchema,
+    selectParts: string[],
+    joins: string[],
+    aliasPrefix: string = '',
+    parameters: any[] = []
+  ) {
+    if (!query.include) return;
 
-    for (const [field, condition] of Object.entries(where)) {
-      if (!this.isValidIdentifier(field)) {
-        throw new Error(`Invalid field name in where: ${field}`);
+    const tableSchema = schema[parentTable];
+    if (!tableSchema || !tableSchema.relations) {
+      throw new Error(`No relations defined for table: ${parentTable}`);
+    }
+
+    const includes = Array.isArray(query.include)
+      ? query.include.map((i) => ({ name: i, query: {} as JSONQLQuery }))
+      : Object.entries(query.include).map(([k, v]) => ({ name: k, query: v }));
+
+    for (const inc of includes) {
+      const relation = tableSchema.relations[inc.name];
+      if (!relation) {
+        throw new Error(`Relation not found: ${inc.name}`);
       }
 
-      const quotedField = this.dialect.quoteIdentifier(field);
+      const targetTable = relation.target;
+      const quotedTargetTable = this.dialect.quoteIdentifier(targetTable);
+      
+      // Alias logic: if prefix exists, append. e.g. "items" -> "items__product"
+      const alias = aliasPrefix ? `${aliasPrefix}__${inc.name}` : inc.name;
+      const quotedAlias = this.dialect.quoteIdentifier(alias);
 
-      if (condition && typeof condition === 'object') {
+      // Determine Join Condition
+      let joinCondition = '';
+      if (relation.type === 'belongsTo') {
+        const fk = relation.foreignKey || `${inc.name}_id`; // Use relation name for FK guess
+        joinCondition = `${parentAlias}.${this.dialect.quoteIdentifier(fk)} = ${quotedAlias}.id`;
+      } else if (relation.type === 'hasMany' || relation.type === 'hasOne') {
+        const fk = relation.foreignKey || `${parentTable}_id`; // Use parent table name for FK guess
+        joinCondition = `${parentAlias}.id = ${quotedAlias}.${this.dialect.quoteIdentifier(fk)}`;
+      }
+
+      // Handle WHERE in include (add to ON clause)
+      if (inc.query.where) {
+        const whereConditions = this.parseWhere(inc.query.where, parameters, quotedAlias);
+        if (whereConditions.length > 0) {
+          joinCondition += ` AND ${whereConditions.join(' AND ')}`;
+        }
+      }
+
+      joins.push(`LEFT JOIN ${quotedTargetTable} AS ${quotedAlias} ON ${joinCondition}`);
+
+      // Add fields from included table
+      if (inc.query.fields && inc.query.fields.length > 0) {
+        for (const field of inc.query.fields) {
+          selectParts.push(`${quotedAlias}.${this.dialect.quoteIdentifier(field)} AS "${alias}__${field}"`);
+        }
+      } else {
+        const targetSchema = schema[targetTable];
+        if (targetSchema && targetSchema.fields) {
+          for (const field of Object.keys(targetSchema.fields)) {
+            selectParts.push(`${quotedAlias}.${this.dialect.quoteIdentifier(field)} AS "${alias}__${field}"`);
+          }
+        } else {
+          selectParts.push(`${quotedAlias}.*`);
+        }
+      }
+
+      // Recurse
+      if (inc.query.include) {
+        this.processIncludes(inc.query, targetTable, quotedAlias, schema, selectParts, joins, alias, parameters);
+      }
+    }
+  }
+
+  private parseWhere(where: JSONQLWhere, parameters: any[], quotedTableName?: string): string[] {
+    const conditions: string[] = [];
+    const prefix = quotedTableName ? `${quotedTableName}.` : '';
+
+    for (const [key, value] of Object.entries(where)) {
+      // Handle Logical Operators
+      if (key === 'or' || key === 'OR') {
+        if (Array.isArray(value)) {
+          const orConditions: string[] = [];
+          for (const subWhere of value) {
+            const subConds = this.parseWhere(subWhere, parameters, quotedTableName);
+            if (subConds.length > 0) {
+              orConditions.push(`(${subConds.join(' AND ')})`);
+            }
+          }
+          if (orConditions.length > 0) {
+            conditions.push(`(${orConditions.join(' OR ')})`);
+          }
+        }
+        continue;
+      }
+
+      if (key === 'and' || key === 'AND') {
+        if (Array.isArray(value)) {
+          for (const subWhere of value) {
+            const subConds = this.parseWhere(subWhere, parameters, quotedTableName);
+            if (subConds.length > 0) {
+              conditions.push(`(${subConds.join(' AND ')})`);
+            }
+          }
+        }
+        continue;
+      }
+
+      if (key === 'not' || key === 'NOT') {
+        const subConds = this.parseWhere(value as JSONQLWhere, parameters, quotedTableName);
+        if (subConds.length > 0) {
+          conditions.push(`NOT (${subConds.join(' AND ')})`);
+        }
+        continue;
+      }
+
+      if (!this.isValidIdentifier(key)) {
+        throw new Error(`Invalid field name in where: ${key}`);
+      }
+
+      const quotedField = `${prefix}${this.dialect.quoteIdentifier(key)}`;
+      const condition = value;
+
+      if (condition && typeof condition === 'object' && !Array.isArray(condition)) {
         // Handle operators
         if ('eq' in condition) {
           if (condition.eq === null) {
@@ -189,12 +312,13 @@ export class SQLTranspiler {
             parameters.push(condition.eq);
           }
         }
-        if ('neq' in condition) {
-          if (condition.neq === null) {
+        if ('ne' in condition || 'neq' in condition) {
+          const val = condition.ne !== undefined ? condition.ne : (condition as any).neq;
+          if (val === null) {
             conditions.push(`${quotedField} IS NOT NULL`);
           } else {
             conditions.push(`${quotedField} != ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition.neq);
+            parameters.push(val);
           }
         }
         if ('gt' in condition) {
@@ -212,6 +336,18 @@ export class SQLTranspiler {
         if ('lte' in condition) {
           conditions.push(`${quotedField} <= ${this.dialect.getPlaceholder(parameters.length)}`);
           parameters.push(condition.lte);
+        }
+        if ('in' in condition && Array.isArray(condition.in)) {
+          if (condition.in.length === 0) {
+            conditions.push('1=0');
+          } else {
+            const placeholdersArr: string[] = [];
+            for (const v of condition.in) {
+              placeholdersArr.push(this.dialect.getPlaceholder(parameters.length));
+              parameters.push(v);
+            }
+            conditions.push(`${quotedField} IN (${placeholdersArr.join(', ')})`);
+          }
         }
       } else {
         // Implicit eq
