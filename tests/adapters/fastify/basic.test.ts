@@ -1,37 +1,23 @@
 import Fastify from 'fastify';
 import { jsonqlFastify } from '../../../src/adapters/fastify';
-import { ResultHydrator } from '../../../src/hydrator';
-import { SQLTranspiler } from '../../../src/transpiler';
+import { SQLiteDriver } from '../../../src/drivers/sqlite';
 import { setupSQLiteDB } from '../../fixtures/setup-db';
 import { Database } from 'sqlite';
 
 describe('Fastify Adapter E2E (SQLite)', () => {
   let app: any;
   let db: Database;
-  const hydrator = new ResultHydrator();
-  const transpiler = new SQLTranspiler('sqlite');
 
   beforeAll(async () => {
     db = await setupSQLiteDB();
     app = Fastify();
-    await app.register(jsonqlFastify);
 
-    app.get('/api/posts', async (req: any, reply: any) => {
-      const query = req.jsonql;
-      const { sql, parameters } = transpiler.transpile(query, 'posts');
-
-      try {
-        const flatRows = await db.all(sql, parameters);
-        const hydrated = hydrator.hydrate(flatRows);
-        return { meta: { query }, data: hydrated };
-      } catch (err: any) {
-        reply.code(500).send({ error: err.message });
-      }
-    });
-
-    app.post('/api/users', async (req: any, reply: any) => {
-      return { received: req.jsonql };
-    });
+    await app.register(async (instance: any) => {
+      await instance.register(jsonqlFastify, {
+        driver: new SQLiteDriver(db),
+        tables: ['posts', 'users'],
+      });
+    }, { prefix: '/api' });
 
     await app.ready();
   });
@@ -67,7 +53,10 @@ describe('Fastify Adapter E2E (SQLite)', () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.payload).received).toEqual(q);
+    const body = JSON.parse(res.payload);
+    // The adapter returns { meta: { query }, data: ... }
+    // We check if the parsed query matches what we sent (normalized)
+    expect(body.meta.query.fields).toEqual(q.fields);
   });
 
   it('should reject invalid JSONQL', async () => {

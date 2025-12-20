@@ -6,6 +6,11 @@ import {
   BadRequestException,
   ForbiddenException,
   Provider,
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JSONQLParser } from '../core';
@@ -62,7 +67,10 @@ export class JsonqlService {
       try {
         rawQuery = JSON.parse((q as string) || '{}');
       } catch (e) {
-        throw new BadRequestException('Invalid JSON in query parameter "q"');
+        throw new BadRequestException({
+          error: 'Bad Request',
+          details: 'Invalid JSON in query parameter "q"',
+        });
       }
     } else {
       rawQuery = req.body;
@@ -98,7 +106,10 @@ export class JsonqlService {
           tableName = pathName;
         }
         if (!this.options.tables.includes(tableName)) {
-          throw new ForbiddenException(`Table '${tableName}' is not allowed`);
+          throw new ForbiddenException({
+            error: 'Forbidden',
+            details: `Table '${tableName}' is not allowed`,
+          });
         }
       } else {
         // Mode B: Mapping (Object)
@@ -127,7 +138,10 @@ export class JsonqlService {
 
             const allowedTables = Object.values(this.options.tables);
             if (!allowedTables.includes(tableName)) {
-              throw new ForbiddenException(`Table '${tableName}' is not allowed`);
+              throw new ForbiddenException({
+                error: 'Forbidden',
+                details: `Table '${tableName}' is not allowed`,
+              });
             }
           } else {
             // If no table name in query and path doesn't map to a table, try to use path as table name if allowed
@@ -192,7 +206,10 @@ export class JsonqlService {
     // 6. Auto-Handle if executor is provided
     if (this.canExecute && this.transpiler && this.hydrator) {
       if (!tableName) {
-        throw new BadRequestException('Table name could not be inferred');
+        throw new BadRequestException({
+          error: 'Bad Request',
+          details: 'Table name could not be inferred',
+        });
       }
 
       // Transpile
@@ -293,5 +310,35 @@ export class JsonqlModule {
       ],
       exports: [JsonqlService],
     };
+  }
+}
+
+@Catch()
+export class JsonqlExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+
+    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message: any = {
+      statusCode: status,
+      message: 'Internal server error',
+    };
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      message = exception.getResponse();
+    } else if (
+      // Check for "foreign" HttpException (from another node_modules instance)
+      exception &&
+      typeof exception === 'object' &&
+      typeof (exception as any).getStatus === 'function' &&
+      typeof (exception as any).getResponse === 'function'
+    ) {
+      status = (exception as any).getStatus();
+      message = (exception as any).getResponse();
+    }
+
+    response.status(status).json(message);
   }
 }
