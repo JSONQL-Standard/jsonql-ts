@@ -110,8 +110,17 @@ export class SQLTranspiler {
       if (!schema) {
         throw new Error('Schema is required for include operations');
       }
-      this.processIncludes(query, tableName, quotedTableName, schema, selectParts, joins, '', parameters);
-      
+      this.processIncludes(
+        query,
+        tableName,
+        quotedTableName,
+        schema,
+        selectParts,
+        joins,
+        '',
+        parameters,
+      );
+
       // Rebuild SELECT with included fields
       sql = `SELECT ${selectParts.join(', ')} FROM ${quotedTableName}`;
     }
@@ -184,7 +193,7 @@ export class SQLTranspiler {
     selectParts: string[],
     joins: string[],
     aliasPrefix: string = '',
-    parameters: any[] = []
+    parameters: any[] = [],
   ) {
     if (!query.include) return;
 
@@ -205,7 +214,7 @@ export class SQLTranspiler {
 
       const targetTable = relation.target;
       const quotedTargetTable = this.dialect.quoteIdentifier(targetTable);
-      
+
       // Alias logic: if prefix exists, append. e.g. "items" -> "items__product"
       const alias = aliasPrefix ? `${aliasPrefix}__${inc.name}` : inc.name;
       const quotedAlias = this.dialect.quoteIdentifier(alias);
@@ -221,25 +230,121 @@ export class SQLTranspiler {
       }
 
       // Handle WHERE in include (add to ON clause)
-      if (inc.query.where) {
+      // Only if NOT aggregating (aggregates handle where internally)
+      if (inc.query.where && !inc.query.aggregate) {
         const whereConditions = this.parseWhere(inc.query.where, parameters, quotedAlias);
         if (whereConditions.length > 0) {
           joinCondition += ` AND ${whereConditions.join(' AND ')}`;
         }
       }
 
-      joins.push(`LEFT JOIN ${quotedTargetTable} AS ${quotedAlias} ON ${joinCondition}`);
+      // Handle Aggregate in Include
+      if (inc.query.aggregate) {
+        if (relation.type !== 'hasMany') {
+            throw new Error('Aggregate in include is only supported for hasMany relations');
+        }
+        const fk = relation.foreignKey || `${parentTable}_id`;
+        const quotedFk = this.dialect.quoteIdentifier(fk);
+
+        // Build Aggregate Selects
+        const aggSelects: string[] = [quotedFk];
+        for (const [aggAlias, func] of Object.entries(inc.query.aggregate)) {
+            const funcName = Object.keys(func)[0];
+            const field = (func as any)[funcName];
+            const quotedField = field === '*' ? '*' : this.dialect.quoteIdentifier(field);
+            aggSelects.push(`${funcName.toUpperCase()}(${quotedField}) AS ${this.dialect.quoteIdentifier(aggAlias)}`);
+        }
+
+        // Build Subquery
+        let subQuery = `SELECT ${aggSelects.join(', ')} FROM ${quotedTargetTable}`;
+        
+        // Handle Where inside Aggregate Subquery
+        if (inc.query.where) {
+            // Note: parseWhere usually expects an alias. Here we are selecting from the raw table in subquery.
+            // We can pass quotedTargetTable as alias, or empty if we don't want alias prefix in subquery.
+            // But wait, parseWhere adds alias prefix.
+            // If we use quotedTargetTable as alias, the WHERE clause will be "target"."field" = ?.
+            // This is correct for the subquery: SELECT ... FROM "target" WHERE "target"."field" = ?
+            const whereConditions = this.parseWhere(inc.query.where, parameters, quotedTargetTable);
+            if (whereConditions.length > 0) {
+                subQuery += ` WHERE ${whereConditions.join(' AND ')}`;
+            }
+        }
+
+        subQuery += ` GROUP BY ${quotedFk}`;
+
+        // Join the subquery
+        // Note: We don't use the standard joinCondition logic because we are joining on the result of aggregation
+        // The standard joinCondition uses `quotedAlias.fk`. Here `quotedAlias` IS the subquery result.
+        // So `quotedAlias.fk` is valid.
+        
+        // Override joinCondition to ensure it matches the subquery structure
+        joinCondition = `${parentAlias}.id = ${quotedAlias}.${quotedFk}`;
+
+        joins.push(`LEFT JOIN (${subQuery}) AS ${quotedAlias} ON ${joinCondition}`);
+
+        // Add aggregated fields to main select
+        for (const aggAlias of Object.keys(inc.query.aggregate)) {
+             selectParts.push(
+                `${quotedAlias}.${this.dialect.quoteIdentifier(aggAlias)} AS "${alias}__${aggAlias}"`
+             );
+        }
+
+        // Do NOT recurse or add standard fields if aggregating
+        continue;
+      }
+
+      // Handle Limit in Include (Pagination) - Requires Window Functions
+      if ((inc.query.limit || inc.query.skip) && relation.type === 'hasMany') {
+        const fk = relation.foreignKey || `${parentTable}_id`;
+        const quotedFk = this.dialect.quoteIdentifier(fk);
+
+        let orderBy = 'id'; // Default sort for pagination
+        
+        if (inc.query.sort) {
+          const s = Array.isArray(inc.query.sort) ? inc.query.sort[0] : inc.query.sort;
+          if (s.startsWith('-')) {
+            orderBy = `${this.dialect.quoteIdentifier(s.substring(1))} DESC`;
+          } else {
+            orderBy = `${this.dialect.quoteIdentifier(s)} ASC`;
+          }
+        }
+
+        const subQuery = `(SELECT *, ROW_NUMBER() OVER (PARTITION BY ${quotedFk} ORDER BY ${orderBy}) as rn FROM ${quotedTargetTable})`;
+
+        // Calculate Offset
+        let offset = inc.query.skip || 0;
+
+        // Add limit/offset condition
+        // Row Number is 1-based
+        // Skip 0, Limit 5 -> rn > 0 AND rn <= 5 (1,2,3,4,5)
+        // Skip 5, Limit 5 -> rn > 5 AND rn <= 10 (6,7,8,9,10)
+        
+        joinCondition += ` AND ${quotedAlias}.rn > ${offset}`;
+        
+        if (inc.query.limit) {
+            joinCondition += ` AND ${quotedAlias}.rn <= ${offset + inc.query.limit}`;
+        }
+
+        joins.push(`LEFT JOIN ${subQuery} AS ${quotedAlias} ON ${joinCondition}`);
+      } else {
+        joins.push(`LEFT JOIN ${quotedTargetTable} AS ${quotedAlias} ON ${joinCondition}`);
+      }
 
       // Add fields from included table
       if (inc.query.fields && inc.query.fields.length > 0) {
         for (const field of inc.query.fields) {
-          selectParts.push(`${quotedAlias}.${this.dialect.quoteIdentifier(field)} AS "${alias}__${field}"`);
+          selectParts.push(
+            `${quotedAlias}.${this.dialect.quoteIdentifier(field)} AS "${alias}__${field}"`,
+          );
         }
       } else {
         const targetSchema = schema[targetTable];
         if (targetSchema && targetSchema.fields) {
           for (const field of Object.keys(targetSchema.fields)) {
-            selectParts.push(`${quotedAlias}.${this.dialect.quoteIdentifier(field)} AS "${alias}__${field}"`);
+            selectParts.push(
+              `${quotedAlias}.${this.dialect.quoteIdentifier(field)} AS "${alias}__${field}"`,
+            );
           }
         } else {
           selectParts.push(`${quotedAlias}.*`);
@@ -248,7 +353,16 @@ export class SQLTranspiler {
 
       // Recurse
       if (inc.query.include) {
-        this.processIncludes(inc.query, targetTable, quotedAlias, schema, selectParts, joins, alias, parameters);
+        this.processIncludes(
+          inc.query,
+          targetTable,
+          quotedAlias,
+          schema,
+          selectParts,
+          joins,
+          alias,
+          parameters,
+        );
       }
     }
   }

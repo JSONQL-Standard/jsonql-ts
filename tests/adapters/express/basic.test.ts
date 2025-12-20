@@ -130,7 +130,7 @@ describe('Express Adapter E2E (SQLite)', () => {
     const q = JSON.stringify({ version: '99.0' }); // Invalid version
     const res = await request(app).get(`/api/users?q=${encodeURIComponent(q)}`);
 
-    console.error(res.body);
+    // console.error(res.body);
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid JSONQL Query');
   });

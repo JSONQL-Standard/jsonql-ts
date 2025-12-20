@@ -9,7 +9,9 @@ export interface SchemaManagerOptions {
   runtimeSchema?: JSONQLSchema;
 
   // Lifecycle Hooks
-  beforeIntrospect?: (config: SchemaManagerOptions) => Promise<SchemaManagerOptions> | SchemaManagerOptions;
+  beforeIntrospect?: (
+    config: SchemaManagerOptions,
+  ) => Promise<SchemaManagerOptions> | SchemaManagerOptions;
   afterIntrospect?: (schema: JSONQLSchema) => Promise<JSONQLSchema> | JSONQLSchema;
 }
 

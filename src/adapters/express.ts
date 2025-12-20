@@ -4,6 +4,7 @@ import { SQLTranspiler } from '../transpiler';
 import { ResultHydrator } from '../hydrator';
 import { JSONQLValidator } from '../validator';
 import { AdapterOptions, FrameworkAdapter } from './types';
+import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
 
 export type JsonqlExpressOptions = AdapterOptions<Request>;
 
@@ -12,6 +13,7 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
   private transpiler: SQLTranspiler | null;
   private hydrator: ResultHydrator | null;
   private canExecute: boolean;
+  private logger: Logger;
 
   constructor(private options: JsonqlExpressOptions) {
     this.parser = new JSONQLParser();
@@ -22,6 +24,15 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
 
     this.transpiler = this.canExecute ? new SQLTranspiler(dialect) : null;
     this.hydrator = this.canExecute ? new ResultHydrator() : null;
+
+    // Initialize Logger
+    if (options.logger) {
+      this.logger = options.logger;
+    } else if (options.debug) {
+      this.logger = new ConsoleLogger();
+    } else {
+      this.logger = new NoOpLogger();
+    }
   }
 
   async handleRequest(rawInput: any, req: Request): Promise<any> {
@@ -58,24 +69,36 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
         if (mappedTable) {
           // Case 1: Path matches a defined mapping (e.g. /sales -> orders)
           if (query.from) {
-             throw { status: 400, error: 'Bad Request', details: `Cannot specify 'from' in a table-specific endpoint. This endpoint is hardcoded to '${mappedTable}'.` };
+            throw {
+              status: 400,
+              error: 'Bad Request',
+              details: `Cannot specify 'from' in a table-specific endpoint. This endpoint is hardcoded to '${mappedTable}'.`,
+            };
           }
           tableName = mappedTable;
         } else {
           // Case 2: Path does not match a mapping
           // Only allow 'from' if we are at the root of the mount point
           if (pathName === '') {
-             if (tableName) {
-                 const allowedTables = Object.values(this.options.tables);
-                 if (!allowedTables.includes(tableName)) {
-                    throw { status: 403, error: 'Forbidden', details: `Table '${tableName}' is not allowed` };
-                 }
-             }
+            if (tableName) {
+              const allowedTables = Object.values(this.options.tables);
+              if (!allowedTables.includes(tableName)) {
+                throw {
+                  status: 403,
+                  error: 'Forbidden',
+                  details: `Table '${tableName}' is not allowed`,
+                };
+              }
+            }
           } else {
-             // Path is not empty, and not mapped.
-             if (tableName) {
-                 throw { status: 400, error: 'Bad Request', details: `Cannot specify 'from' on non-root endpoint '${pathName}'` };
-             }
+            // Path is not empty, and not mapped.
+            if (tableName) {
+              throw {
+                status: 400,
+                error: 'Bad Request',
+                details: `Cannot specify 'from' on non-root endpoint '${pathName}'`,
+              };
+            }
           }
         }
       }
@@ -125,8 +148,15 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       // Transpile
       const { sql, parameters } = this.transpiler.transpile(query, tableName, this.options.schema);
 
+      this.logger.debug(`[JSONQL] -----------------------------------------------------------------`);
+      this.logger.debug(`[JSONQL] Request: ${req.method} ${req.path}`);
+      this.logger.debug(`[JSONQL] Table:   ${tableName}`);
+      this.logger.debug(`[JSONQL] SQL:     ${sql}`);
+      this.logger.debug(`[JSONQL] Params:  ${JSON.stringify(parameters)}`);
+
       // Execute
       let flatRows: any[] = [];
+      const start = Date.now();
       try {
         if (this.options.driver) {
           flatRows = await this.options.driver.query(sql, parameters);
@@ -134,15 +164,21 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
           flatRows = await this.options.execute(sql, parameters);
         }
       } catch (err: any) {
+        this.logger.error(`[JSONQL] Execution Error:`, err);
         throw { status: 400, error: 'Execution Error', details: err.message };
       }
+
+      const duration = Date.now() - start;
+      this.logger.debug(`[JSONQL] Time:    ${duration}ms`);
+      this.logger.debug(`[JSONQL] Rows:    ${flatRows.length}`);
+      this.logger.debug(`[JSONQL] -----------------------------------------------------------------`);
 
       if (this.options.beforeHydrate) {
         flatRows = await this.options.beforeHydrate(flatRows, req);
       }
 
       // Hydrate
-      let data = this.hydrator.hydrate(flatRows);
+      let data = this.hydrator.hydrate(flatRows, this.options.schema, tableName);
 
       if (this.options.afterHydrate) {
         data = await this.options.afterHydrate(data, req);
@@ -162,7 +198,8 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
     return async (req: Request, res: Response, next: NextFunction) => {
       try {
         // 1. Extract Query
-        const rawQuery = req.method === 'GET' ? JSON.parse((req.query.q as string) || '{}') : req.body;
+        const rawQuery =
+          req.method === 'GET' ? JSON.parse((req.query.q as string) || '{}') : req.body;
 
         const result = await this.handleRequest(rawQuery, req);
 
@@ -185,4 +222,3 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
 export function jsonqlExpress(options: JsonqlExpressOptions = {}) {
   return new ExpressAdapter(options).middleware();
 }
-

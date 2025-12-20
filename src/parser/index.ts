@@ -102,17 +102,20 @@ export class JSONQLParser {
           field = field.substring(1);
         }
         if (!this.isValidIdentifier(field)) {
-          throw new Error(`Invalid sort field: "${field}"`);
+          throw new Error(`Invalid sort field: "${obj.sort}"`);
         }
-        query.sort = obj.sort;
+        query.sort = [obj.sort];
       } else if (Array.isArray(obj.sort)) {
-        for (const item of obj.sort) {
-          let field = item;
+        for (const s of obj.sort) {
+          if (typeof s !== 'string') {
+            throw new Error('sort elements must be strings');
+          }
+          let field = s;
           if (field.startsWith('-')) {
             field = field.substring(1);
           }
           if (!this.isValidIdentifier(field)) {
-            throw new Error(`Invalid sort field: "${field}"`);
+            throw new Error(`Invalid sort field: "${s}"`);
           }
         }
         query.sort = obj.sort;
@@ -162,6 +165,14 @@ export class JSONQLParser {
     // Parse include
     if (obj.include !== undefined) {
       if (Array.isArray(obj.include)) {
+        for (const i of obj.include) {
+          if (typeof i !== 'string') {
+            throw new Error('include elements must be strings');
+          }
+          if (!this.isValidIdentifier(i)) {
+            throw new Error(`Invalid relation name: "${i}"`);
+          }
+        }
         if (
           this.options.allowedIncludes.length > 0 &&
           !obj.include.every((i: string) => this.options.allowedIncludes.includes(i))
@@ -172,6 +183,9 @@ export class JSONQLParser {
       } else if (typeof obj.include === 'object') {
         const includeMap: any = {};
         for (const [relation, subQuery] of Object.entries(obj.include)) {
+          if (!this.isValidIdentifier(relation)) {
+            throw new Error(`Invalid relation name: "${relation}"`);
+          }
           if (
             this.options.allowedIncludes.length > 0 &&
             !this.options.allowedIncludes.includes(relation)
@@ -190,6 +204,14 @@ export class JSONQLParser {
     if (obj.groupBy !== undefined) {
       if (!Array.isArray(obj.groupBy)) {
         throw new Error('groupBy must be an array of strings');
+      }
+      for (const field of obj.groupBy) {
+        if (typeof field !== 'string') {
+          throw new Error('groupBy elements must be strings');
+        }
+        if (!this.isValidIdentifier(field)) {
+          throw new Error(`Invalid field name in groupBy: "${field}"`);
+        }
       }
       query.groupBy = obj.groupBy;
     }
@@ -284,6 +306,10 @@ export class JSONQLParser {
     const conditions: any = {};
 
     for (const [field, condition] of Object.entries(obj)) {
+      if (!this.isValidIdentifier(field)) {
+        throw new Error(`Invalid field name in where clause: "${field}"`);
+      }
+
       // Handle implicit equality (syntactic sugar)
       if (condition === null || typeof condition !== 'object') {
         conditions[field] = { eq: condition };

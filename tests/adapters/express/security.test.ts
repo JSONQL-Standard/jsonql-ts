@@ -71,19 +71,21 @@ describe('Express Adapter Security', () => {
       // /api/users is not in the map keys
       // It will fall through to next(), so 404 from Express default
       const res = await request(app).get('/api/users');
-      expect(res.status).toBe(404); 
+      expect(res.status).toBe(404);
     });
 
-    it('should allow explicit "from" if it matches a mapped value', async () => {
+    it('should disallow explicit "from" on mapped endpoint', async () => {
       const q = JSON.stringify({ from: 'users' });
       const res = await request(app).get(`/api/my-users?q=${encodeURIComponent(q)}`);
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(400);
+      expect(res.body.details).toContain("Cannot specify 'from' in a table-specific endpoint");
     });
 
-    it('should block explicit "from" if it does not match any mapped value', async () => {
+    it('should disallow explicit "from" on mapped endpoint (even if invalid)', async () => {
       const q = JSON.stringify({ from: 'posts' });
       const res = await request(app).get(`/api/my-users?q=${encodeURIComponent(q)}`);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(400);
+      expect(res.body.details).toContain("Cannot specify 'from' in a table-specific endpoint");
     });
   });
 });

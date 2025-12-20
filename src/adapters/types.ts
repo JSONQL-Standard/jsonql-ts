@@ -1,11 +1,24 @@
 import { JSONQLSchema, JSONQLQuery, ValidationResult } from '../types';
 import { DatabaseDriver } from '../driver';
+import { Logger } from '../logger';
 
 export interface AdapterOptions<Context = any> {
   schema?: JSONQLSchema;
   driver?: DatabaseDriver;
   execute?: (sql: string, params: any[]) => Promise<any[]>;
   dialect?: 'sqlite' | 'postgres' | 'mysql';
+  
+  /**
+   * Enable verbose logging for debugging.
+   * Logs parsed queries, generated SQL, and execution time.
+   */
+  debug?: boolean;
+
+  /**
+   * Custom logger implementation.
+   * If provided, it overrides the default console logger used when debug is true.
+   */
+  logger?: Logger;
 
   /**
    * Whitelist of allowed tables or a mapping of URL paths to table names.
