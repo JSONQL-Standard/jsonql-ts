@@ -38,11 +38,44 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       query = await this.options.afterParse(query, req);
     }
 
-    // 3. Infer Table Name
-    // Priority: 1. Query 'from' | 2. URL Path
+    // 3. Infer & Validate Table Name
     let tableName = query.from;
-    if (!tableName) {
-      tableName = req.path.replace(/^\/|\/$/g, '');
+    const pathName = req.path.replace(/^\/|\/$/g, '');
+
+    if (this.options.tables) {
+      if (Array.isArray(this.options.tables)) {
+        // Mode A: Whitelist (Array)
+        if (!tableName) {
+          tableName = pathName;
+        }
+        if (!this.options.tables.includes(tableName)) {
+          throw { status: 403, error: 'Forbidden', details: `Table '${tableName}' is not allowed` };
+        }
+      } else {
+        // Mode B: Mapping (Object)
+        if (!tableName) {
+          // Resolve from URL alias
+          tableName = this.options.tables[pathName];
+          if (!tableName) {
+             // If strict mapping is enabled, we might want to throw 404 here, 
+             // but returning null allows Express to continue matching other routes if this wasn't a match.
+             // However, if the user sent a JSONQL query body but to a wrong path, maybe we should error?
+             // For now, let's assume if we can't resolve a table, we treat it as "not a jsonql request for this table"
+             // But if 'from' WAS provided, we check below.
+          }
+        } else {
+          // If 'from' is explicit, ensure it's a valid target in the mapping
+          const allowedTables = Object.values(this.options.tables);
+          if (!allowedTables.includes(tableName)) {
+            throw { status: 403, error: 'Forbidden', details: `Table '${tableName}' is not allowed` };
+          }
+        }
+      }
+    } else {
+      // Default Mode: Open
+      if (!tableName) {
+        tableName = pathName;
+      }
     }
 
     if (this.options.beforeQuery) {

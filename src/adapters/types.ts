@@ -7,6 +7,13 @@ export interface AdapterOptions<Context = any> {
   execute?: (sql: string, params: any[]) => Promise<any[]>;
   dialect?: 'sqlite' | 'postgres' | 'mysql';
 
+  /**
+   * Whitelist of allowed tables or a mapping of URL paths to table names.
+   * - If an array is provided: Only these tables can be queried. URL path must match a table name.
+   * - If a map is provided: Keys are URL paths (aliases), Values are actual table names.
+   */
+  tables?: string[] | Record<string, string>;
+
   // Lifecycle Hooks
   beforeParse?: (rawInput: any, context: Context) => Promise<any> | any;
   afterParse?: (query: JSONQLQuery, context: Context) => Promise<JSONQLQuery> | JSONQLQuery;
