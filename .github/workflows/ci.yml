@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  unit-tests:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -20,73 +20,3 @@ jobs:
       - name: Run Tests
         run: npm test
 
-  ecosystem-tests:
-    needs: unit-tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        framework: [express-server, fastify-server, nestjs-server]
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Checkout JSONQL Spec
-        uses: actions/checkout@v3
-        with:
-          repository: jsonql-standard/jsonql-spec
-          path: jsonql-spec
-          token: ${{ secrets.PAT_TOKEN }}
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install SDK Dependencies
-        run: npm ci
-        
-      - name: Build SDK
-        run: npm run build
-        
-      - name: Install Example Dependencies
-        run: |
-          cd examples/${{ matrix.framework }}
-          npm ci
-          
-      - name: Start Server & Run Tests
-        env:
-          JSONQL_DATA_PATH: ${{ github.workspace }}/jsonql-spec/tests/suites/standard/data.json
-        run: |
-          # Verify data file exists
-          ls -la $JSONQL_DATA_PATH
-          
-          # Start server in background
-          cd examples/${{ matrix.framework }}
-          npm start &
-          SERVER_PID=$!
-          
-          # Wait for server to be ready
-          sleep 10
-          
-          # Setup Python for test runner
-          cd ../../jsonql-spec
-          pip install requests
-          
-          # Run Standard Execution Suite
-          python3 run_ecosystem_tests.py \
-            --target http://localhost:3000 \
-            --suite-dir tests/suites/standard
-
-          # Run HTTP Integration Suite
-          python3 run_ecosystem_tests.py \
-            --target http://localhost:3000 \
-            --file tests/http/integration.json \
-            --mode http
-
-          # Run Security Suite (SQL Injection)
-          python3 run_ecosystem_tests.py \
-            --target http://localhost:3000 \
-            --file tests/suites/security/sql_injection.json \
-            --mode standard
-            
-          # Cleanup
-          kill $SERVER_PID

@@ -25,76 +25,31 @@ export async function setupSQLiteDB(): Promise<Database> {
   }
 
   // Create Tables and Seed Data
+  for (const [tableName, rows] of Object.entries(data)) {
+    if (!Array.isArray(rows) || rows.length === 0) continue;
 
-  // Users
-  await db.exec(`
-    CREATE TABLE users (
-      id INTEGER PRIMARY KEY,
-      name TEXT,
-      email TEXT,
-      status TEXT,
-      age INTEGER,
-      deleted_at TEXT
-    );
-  `);
-  if (data.users) {
-    for (const user of data.users) {
-      await db.run(
-        'INSERT INTO users (id, name, email, status, age, deleted_at) VALUES (?, ?, ?, ?, ?, ?)',
-        user.id,
-        user.name,
-        user.email,
-        user.status,
-        user.age,
-        user.deleted_at,
-      );
-    }
-  }
+    // Infer schema from first row
+    const firstRow = rows[0] as any;
+    const columns = Object.keys(firstRow).map((key) => {
+      const val = firstRow[key];
+      let type = 'TEXT';
+      if (typeof val === 'number') type = Number.isInteger(val) ? 'INTEGER' : 'REAL';
+      if (typeof val === 'boolean') type = 'INTEGER'; // SQLite uses 0/1 for boolean
+      return `${key} ${type}`;
+    });
 
-  // Posts
-  await db.exec(`
-    CREATE TABLE posts (
-      id INTEGER PRIMARY KEY,
-      user_id INTEGER,
-      title TEXT,
-      views INTEGER,
-      published BOOLEAN
-    );
-  `);
-  if (data.posts) {
-    for (const post of data.posts) {
-      await db.run(
-        'INSERT INTO posts (id, user_id, title, views, published) VALUES (?, ?, ?, ?, ?)',
-        post.id,
-        post.user_id,
-        post.title,
-        post.views,
-        post.published,
-      );
-    }
-  }
+    await db.exec(`DROP TABLE IF EXISTS ${tableName}`);
+    await db.exec(`CREATE TABLE ${tableName} (${columns.join(', ')})`);
 
-  // Comments
-  await db.exec(`
-    CREATE TABLE comments (
-      id INTEGER PRIMARY KEY,
-      post_id INTEGER,
-      user_id INTEGER,
-      content TEXT,
-      approved BOOLEAN
+    const placeholders = Object.keys(firstRow).map(() => '?').join(', ');
+    const stmt = await db.prepare(
+      `INSERT INTO ${tableName} (${Object.keys(firstRow).join(', ')}) VALUES (${placeholders})`,
     );
-  `);
-  if (data.comments) {
-    for (const comment of data.comments) {
-      await db.run(
-        'INSERT INTO comments (id, post_id, user_id, content, approved) VALUES (?, ?, ?, ?, ?)',
-        comment.id,
-        comment.post_id,
-        comment.user_id,
-        comment.content,
-        comment.approved,
-      );
+
+    for (const row of rows as any[]) {
+      await stmt.run(Object.values(row));
     }
+    await stmt.finalize();
   }
 
   return db;
