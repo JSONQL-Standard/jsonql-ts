@@ -1,16 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  Controller,
-  Get,
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  Req,
-  Injectable,
-} from '@nestjs/common';
-import { JsonqlMiddleware } from '../../../src/adapters/nestjs';
-import { ResultHydrator } from '../../../src/hydrator';
-import { SQLTranspiler } from '../../../src/transpiler';
+import { Controller, Get, Module, NestModule, Req, Injectable, Inject } from '@nestjs/common';
+import { JsonqlModule, JsonqlService } from '../../../src/adapters/nestjs';
 import { setupSQLiteDB } from '../../fixtures/setup-db';
 import { Database } from 'sqlite';
 import request from 'supertest';
@@ -34,33 +24,36 @@ class DatabaseService {
 // Controller
 @Controller('posts')
 class PostsController {
-  private hydrator = new ResultHydrator();
-  private transpiler = new SQLTranspiler('sqlite');
-
-  constructor(private db: DatabaseService) {}
+  constructor(private jsonqlService: JsonqlService) {}
 
   @Get()
   async findAll(@Req() req: any) {
-    const query = req.jsonql;
-    const { sql, parameters } = this.transpiler.transpile(query, 'posts');
-
-    const flatRows = await this.db.query(sql, parameters);
-    const hydrated = this.hydrator.hydrate(flatRows);
-
-    return { meta: { query }, data: hydrated };
+    return this.jsonqlService.handleRequest(req);
   }
 }
+
+@Module({
+  providers: [DatabaseService],
+  exports: [DatabaseService],
+})
+class DbModule {}
 
 // Module
 @Module({
+  imports: [
+    JsonqlModule.forRootAsync({
+      imports: [DbModule],
+      inject: [DatabaseService],
+      useFactory: (dbService: DatabaseService) => ({
+        execute: (sql: string, params: any[]) => dbService.query(sql, params),
+        dialect: 'sqlite',
+        tables: ['posts'], // Whitelist 'posts' table
+      }),
+    }),
+  ],
   controllers: [PostsController],
-  providers: [DatabaseService],
 })
-class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(JsonqlMiddleware).forRoutes('posts');
-  }
-}
+class AppModule {}
 
 describe('NestJS Adapter E2E (SQLite)', () => {
   let app: any;
@@ -73,9 +66,7 @@ describe('NestJS Adapter E2E (SQLite)', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
 
-    // Trigger onModuleInit manually if needed, but Nest usually handles it.
-    // However, setupSQLiteDB is async, so we might need to wait or ensure it's done.
-    // The DatabaseService.onModuleInit hook is standard NestJS.
+    // Ensure DB is initialized
     const dbService = app.get(DatabaseService);
     await dbService.onModuleInit();
   });
