@@ -8,10 +8,10 @@ import {
   Req,
   Injectable,
 } from '@nestjs/common';
-import { JsonqlMiddleware } from '../src/adapters/nestjs';
-import { ResultHydrator } from '../src/hydrator';
-import { SQLTranspiler } from '../src/transpiler';
-import { setupSQLiteDB } from './e2e/setup-db';
+import { JsonqlMiddleware } from '../../../src/adapters/nestjs';
+import { ResultHydrator } from '../../../src/hydrator';
+import { SQLTranspiler } from '../../../src/transpiler';
+import { setupSQLiteDB } from '../../fixtures/setup-db';
 import { Database } from 'sqlite';
 import request from 'supertest';
 import 'reflect-metadata';

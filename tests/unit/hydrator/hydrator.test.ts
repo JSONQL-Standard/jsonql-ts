@@ -1,4 +1,4 @@
-import { ResultHydrator } from '../src/hydrator';
+import { ResultHydrator } from '../../../src/hydrator';
 
 describe('ResultHydrator', () => {
   const hydrator = new ResultHydrator();

@@ -1,8 +1,8 @@
-import { SchemaManager } from '../src/schema/manager';
-import { SQLiteIntrospector } from '../src/schema/sqlite-introspector';
-import { SQLiteDriver } from '../src/drivers/sqlite';
-import { setupSQLiteDB } from './e2e/setup-db';
-import { JSONQLSchema } from '../src/types';
+import { SchemaManager } from '../../../src/schema/manager';
+import { SQLiteIntrospector } from '../../../src/schema/sqlite-introspector';
+import { SQLiteDriver } from '../../../src/drivers/sqlite';
+import { setupSQLiteDB } from '../../fixtures/setup-db';
+import { JSONQLSchema } from '../../../src/types';
 import * as fs from 'fs';
 import * as path from 'path';
 

@@ -5,7 +5,7 @@ import { JSONQL } from '../../src/core';
 // Allow overriding spec path via environment variable for CI/CD
 const SUITES_DIR = process.env.JSONQL_SPEC_PATH
   ? path.resolve(process.env.JSONQL_SPEC_PATH, 'tests/suites')
-  : path.resolve(__dirname, '../../../jsonql-spec/tests/suites');
+  : path.resolve(__dirname, '../fixtures/suites');
 
 describe('JSONQL Compliance Tests', () => {
   if (!fs.existsSync(SUITES_DIR)) {

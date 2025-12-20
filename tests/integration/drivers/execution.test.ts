@@ -3,13 +3,13 @@ import * as path from 'path';
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import { Client } from 'pg';
-import { SQLTranspiler } from '../../src/transpiler';
-import { JSONQLParser } from '../../src/parser';
+import { SQLTranspiler } from '../../../src/transpiler';
+import { JSONQLParser } from '../../../src/parser';
 
 // Allow overriding spec path via environment variable for CI/CD
 const SUITES_DIR = process.env.JSONQL_SPEC_PATH
   ? path.resolve(process.env.JSONQL_SPEC_PATH, 'tests/suites')
-  : path.resolve(__dirname, '../../../jsonql-spec/tests/suites');
+  : path.resolve(__dirname, '../../fixtures/suites');
 
 describe('JSONQL Execution Tests', () => {
   let db: Database | Client;
@@ -29,7 +29,7 @@ describe('JSONQL Execution Tests', () => {
     } else {
       // SQLite (In-Memory)
       // 1. Load Data
-      const dataPath = path.join(SUITES_DIR, 'standard/data.json');
+      const dataPath = path.resolve(__dirname, '../../fixtures/data/data.json');
       if (!fs.existsSync(dataPath)) {
         console.warn(`Data file not found at ${dataPath}, skipping execution tests.`);
         return;

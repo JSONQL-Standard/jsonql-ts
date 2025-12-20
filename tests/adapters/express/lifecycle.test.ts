@@ -1,10 +1,10 @@
 import request from 'supertest';
 import express from 'express';
-import { jsonqlExpress } from '../src/adapters/express';
-import { setupSQLiteDB } from './e2e/setup-db';
+import { jsonqlExpress } from '../../../src/adapters/express';
+import { setupSQLiteDB } from '../../fixtures/setup-db';
 import { Database } from 'sqlite';
-import { SQLiteDriver } from '../src/drivers/sqlite';
-import { JSONQLQuery } from '../src/types';
+import { SQLiteDriver } from '../../../src/drivers/sqlite';
+import { JSONQLQuery } from '../../../src/types';
 
 describe('Express Adapter Lifecycle Hooks', () => {
   let db: Database;

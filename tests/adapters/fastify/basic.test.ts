@@ -1,8 +1,8 @@
 import Fastify from 'fastify';
-import { jsonqlFastify } from '../src/adapters/fastify';
-import { ResultHydrator } from '../src/hydrator';
-import { SQLTranspiler } from '../src/transpiler';
-import { setupSQLiteDB } from './e2e/setup-db';
+import { jsonqlFastify } from '../../../src/adapters/fastify';
+import { ResultHydrator } from '../../../src/hydrator';
+import { SQLTranspiler } from '../../../src/transpiler';
+import { setupSQLiteDB } from '../../fixtures/setup-db';
 import { Database } from 'sqlite';
 
 describe('Fastify Adapter E2E (SQLite)', () => {

@@ -1,5 +1,5 @@
-import { JSONQLValidator } from '../src/validator';
-import { JSONQLSchema } from '../src/types';
+import { JSONQLValidator } from '../../../src/validator';
+import { JSONQLSchema } from '../../../src/types';
 
 const schema: JSONQLSchema = {
   users: {

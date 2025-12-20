@@ -16,7 +16,7 @@ import {
   and,
   or,
   not,
-} from '../../src/builder';
+} from '../../../src/builder';
 
 describe('JSONQLQueryBuilder', () => {
   let builder: JSONQLQueryBuilder;

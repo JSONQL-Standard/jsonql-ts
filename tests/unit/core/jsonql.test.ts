@@ -1,4 +1,4 @@
-import { JSONQL, JSONQLSchema } from '../../src/core';
+import { JSONQL, JSONQLSchema } from '../../../src/core';
 
 describe('JSONQL Main Class', () => {
   let schema: JSONQLSchema;
