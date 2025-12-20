@@ -12,12 +12,15 @@ describe('Fastify Adapter E2E (SQLite)', () => {
     db = await setupSQLiteDB();
     app = Fastify();
 
-    await app.register(async (instance: any) => {
-      await instance.register(jsonqlFastify, {
-        driver: new SQLiteDriver(db),
-        tables: ['posts', 'users'],
-      });
-    }, { prefix: '/api' });
+    await app.register(
+      async (instance: any) => {
+        await instance.register(jsonqlFastify, {
+          driver: new SQLiteDriver(db),
+          tables: ['posts', 'users'],
+        });
+      },
+      { prefix: '/api' },
+    );
 
     await app.ready();
   });

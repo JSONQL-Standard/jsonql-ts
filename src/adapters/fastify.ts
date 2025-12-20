@@ -232,7 +232,17 @@ export const jsonqlFastify = fp(async function (
 
   const handler = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const rawInput = req.method === 'GET' ? JSON.parse((req.query as any).q || '{}') : req.body;
+      let rawInput;
+      if (req.method === 'GET') {
+        try {
+          rawInput = JSON.parse((req.query as any).q || '{}');
+        } catch (e: any) {
+          throw { status: 400, error: 'Bad Request', details: e.message };
+        }
+      } else {
+        rawInput = req.body;
+      }
+
       const params = req.params as { table?: string };
 
       const result = await adapter.handleRequest(rawInput, req, params);

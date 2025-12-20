@@ -41,7 +41,9 @@ export async function setupSQLiteDB(): Promise<Database> {
     await db.exec(`DROP TABLE IF EXISTS ${tableName}`);
     await db.exec(`CREATE TABLE ${tableName} (${columns.join(', ')})`);
 
-    const placeholders = Object.keys(firstRow).map(() => '?').join(', ');
+    const placeholders = Object.keys(firstRow)
+      .map(() => '?')
+      .join(', ');
     const stmt = await db.prepare(
       `INSERT INTO ${tableName} (${Object.keys(firstRow).join(', ')}) VALUES (${placeholders})`,
     );
