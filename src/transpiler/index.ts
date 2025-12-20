@@ -241,7 +241,7 @@ export class SQLTranspiler {
       // Handle Aggregate in Include
       if (inc.query.aggregate) {
         if (relation.type !== 'hasMany') {
-            throw new Error('Aggregate in include is only supported for hasMany relations');
+          throw new Error('Aggregate in include is only supported for hasMany relations');
         }
         const fk = relation.foreignKey || `${parentTable}_id`;
         const quotedFk = this.dialect.quoteIdentifier(fk);
@@ -249,26 +249,28 @@ export class SQLTranspiler {
         // Build Aggregate Selects
         const aggSelects: string[] = [quotedFk];
         for (const [aggAlias, func] of Object.entries(inc.query.aggregate)) {
-            const funcName = Object.keys(func)[0];
-            const field = (func as any)[funcName];
-            const quotedField = field === '*' ? '*' : this.dialect.quoteIdentifier(field);
-            aggSelects.push(`${funcName.toUpperCase()}(${quotedField}) AS ${this.dialect.quoteIdentifier(aggAlias)}`);
+          const funcName = Object.keys(func)[0];
+          const field = (func as any)[funcName];
+          const quotedField = field === '*' ? '*' : this.dialect.quoteIdentifier(field);
+          aggSelects.push(
+            `${funcName.toUpperCase()}(${quotedField}) AS ${this.dialect.quoteIdentifier(aggAlias)}`,
+          );
         }
 
         // Build Subquery
         let subQuery = `SELECT ${aggSelects.join(', ')} FROM ${quotedTargetTable}`;
-        
+
         // Handle Where inside Aggregate Subquery
         if (inc.query.where) {
-            // Note: parseWhere usually expects an alias. Here we are selecting from the raw table in subquery.
-            // We can pass quotedTargetTable as alias, or empty if we don't want alias prefix in subquery.
-            // But wait, parseWhere adds alias prefix.
-            // If we use quotedTargetTable as alias, the WHERE clause will be "target"."field" = ?.
-            // This is correct for the subquery: SELECT ... FROM "target" WHERE "target"."field" = ?
-            const whereConditions = this.parseWhere(inc.query.where, parameters, quotedTargetTable);
-            if (whereConditions.length > 0) {
-                subQuery += ` WHERE ${whereConditions.join(' AND ')}`;
-            }
+          // Note: parseWhere usually expects an alias. Here we are selecting from the raw table in subquery.
+          // We can pass quotedTargetTable as alias, or empty if we don't want alias prefix in subquery.
+          // But wait, parseWhere adds alias prefix.
+          // If we use quotedTargetTable as alias, the WHERE clause will be "target"."field" = ?.
+          // This is correct for the subquery: SELECT ... FROM "target" WHERE "target"."field" = ?
+          const whereConditions = this.parseWhere(inc.query.where, parameters, quotedTargetTable);
+          if (whereConditions.length > 0) {
+            subQuery += ` WHERE ${whereConditions.join(' AND ')}`;
+          }
         }
 
         subQuery += ` GROUP BY ${quotedFk}`;
@@ -277,7 +279,7 @@ export class SQLTranspiler {
         // Note: We don't use the standard joinCondition logic because we are joining on the result of aggregation
         // The standard joinCondition uses `quotedAlias.fk`. Here `quotedAlias` IS the subquery result.
         // So `quotedAlias.fk` is valid.
-        
+
         // Override joinCondition to ensure it matches the subquery structure
         joinCondition = `${parentAlias}.id = ${quotedAlias}.${quotedFk}`;
 
@@ -285,9 +287,9 @@ export class SQLTranspiler {
 
         // Add aggregated fields to main select
         for (const aggAlias of Object.keys(inc.query.aggregate)) {
-             selectParts.push(
-                `${quotedAlias}.${this.dialect.quoteIdentifier(aggAlias)} AS "${alias}__${aggAlias}"`
-             );
+          selectParts.push(
+            `${quotedAlias}.${this.dialect.quoteIdentifier(aggAlias)} AS "${alias}__${aggAlias}"`,
+          );
         }
 
         // Do NOT recurse or add standard fields if aggregating
@@ -300,7 +302,7 @@ export class SQLTranspiler {
         const quotedFk = this.dialect.quoteIdentifier(fk);
 
         let orderBy = 'id'; // Default sort for pagination
-        
+
         if (inc.query.sort) {
           const s = Array.isArray(inc.query.sort) ? inc.query.sort[0] : inc.query.sort;
           if (s.startsWith('-')) {
@@ -319,11 +321,11 @@ export class SQLTranspiler {
         // Row Number is 1-based
         // Skip 0, Limit 5 -> rn > 0 AND rn <= 5 (1,2,3,4,5)
         // Skip 5, Limit 5 -> rn > 5 AND rn <= 10 (6,7,8,9,10)
-        
+
         joinCondition += ` AND ${quotedAlias}.rn > ${offset}`;
-        
+
         if (inc.query.limit) {
-            joinCondition += ` AND ${quotedAlias}.rn <= ${offset + inc.query.limit}`;
+          joinCondition += ` AND ${quotedAlias}.rn <= ${offset + inc.query.limit}`;
         }
 
         joins.push(`LEFT JOIN ${subQuery} AS ${quotedAlias} ON ${joinCondition}`);

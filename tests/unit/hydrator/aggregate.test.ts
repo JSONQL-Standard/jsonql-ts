@@ -64,7 +64,7 @@ describe('ResultHydrator - Aggregates', () => {
         id: 3,
         name: 'Charlie',
         posts__count: null, // No posts
-        posts__id: null,    // Explicit null id usually means no match
+        posts__id: null, // Explicit null id usually means no match
       },
     ];
 

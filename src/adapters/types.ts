@@ -7,7 +7,7 @@ export interface AdapterOptions<Context = any> {
   driver?: DatabaseDriver;
   execute?: (sql: string, params: any[]) => Promise<any[]>;
   dialect?: 'sqlite' | 'postgres' | 'mysql';
-  
+
   /**
    * Enable verbose logging for debugging.
    * Logs parsed queries, generated SQL, and execution time.

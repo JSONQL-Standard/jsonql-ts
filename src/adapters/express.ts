@@ -148,7 +148,9 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       // Transpile
       const { sql, parameters } = this.transpiler.transpile(query, tableName, this.options.schema);
 
-      this.logger.debug(`[JSONQL] -----------------------------------------------------------------`);
+      this.logger.debug(
+        `[JSONQL] -----------------------------------------------------------------`,
+      );
       this.logger.debug(`[JSONQL] Request: ${req.method} ${req.path}`);
       this.logger.debug(`[JSONQL] Table:   ${tableName}`);
       this.logger.debug(`[JSONQL] SQL:     ${sql}`);
@@ -171,7 +173,9 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       const duration = Date.now() - start;
       this.logger.debug(`[JSONQL] Time:    ${duration}ms`);
       this.logger.debug(`[JSONQL] Rows:    ${flatRows.length}`);
-      this.logger.debug(`[JSONQL] -----------------------------------------------------------------`);
+      this.logger.debug(
+        `[JSONQL] -----------------------------------------------------------------`,
+      );
 
       if (this.options.beforeHydrate) {
         flatRows = await this.options.beforeHydrate(flatRows, req);
