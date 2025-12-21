@@ -4,10 +4,16 @@
   "description": "Official Node.js SDK for JSONQL with support for Express, Fastify, and NestJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "jsonql-gen-sql": "bin/jsonql-gen-sql.js"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:lib && npm run build:cli",
+    "build:lib": "tsc",
+    "build:cli": "tsc -p tsconfig.cli.json",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "test": "jest"
+    "test": "jest",
+    "bench": "tsx benchmark/parser.ts && tsx benchmark/transpiler.ts"
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.9",
@@ -20,6 +26,8 @@
     "@types/pg": "^8.15.6",
     "@types/sqlite3": "^3.1.11",
     "@types/supertest": "^6.0.2",
+    "@types/yargs": "^17.0.32",
+    "benchmark": "^2.1.4",
     "express": "^4.18.2",
     "fastify": "^4.29.1",
     "fastify-plugin": "^5.1.0",
@@ -29,14 +37,19 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "supertest": "^6.3.4",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
+    "tsx": "^4.19.1",
+    "typescript": "^5.3.3",
+    "yargs": "^17.7.2"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "mysql2": "^3.16.0"
+  },
+  "optionalDependencies": {
+    "pg": "^8.16.3",
+    "sqlite3": "^5.1.7"
   },
   "peerDependencies": {
     "@nestjs/common": "^10.0.0 || ^11.0.0",

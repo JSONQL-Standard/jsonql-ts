@@ -14,6 +14,7 @@ describe('Schema Manager & Introspection', () => {
   beforeAll(async () => {
     db = await setupSQLiteDB();
     driver = new SQLiteDriver(db);
+    await driver.connect();
   });
 
   afterAll(() => {

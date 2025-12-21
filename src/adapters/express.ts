@@ -6,7 +6,10 @@ import { JSONQLValidator } from '../validator';
 import { AdapterOptions, FrameworkAdapter } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
 
-export type JsonqlExpressOptions = AdapterOptions<Request>;
+import { DatabaseDriver } from '../drivers/types';
+export interface JsonqlExpressOptions extends AdapterOptions<Request> {
+  driver?: DatabaseDriver;
+}
 
 export class ExpressAdapter implements FrameworkAdapter<Request> {
   private parser: JSONQLParser;
