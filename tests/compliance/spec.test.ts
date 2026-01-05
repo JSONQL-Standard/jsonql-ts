@@ -24,7 +24,8 @@ describe('JSONQL Compliance Tests', () => {
       describe(`Standard: ${file}`, () => {
         testCases.forEach((testCase: any) => {
           it(`${testCase.id}: ${testCase.description}`, () => {
-            const jsonql = new JSONQL(testCase.schema); // Pass schema if available
+            const schema = testCase.schema ? (testCase.schema.tables ? testCase.schema : { tables: { default: testCase.schema } }) : undefined;
+            const jsonql = new JSONQL(schema, 'default'); // Pass schema if available
 
             if (testCase.valid !== false) {
               expect(() => {
@@ -115,6 +116,9 @@ describe('JSONQL Compliance Tests', () => {
     let sharedSchema: any = undefined;
     if (fs.existsSync(schemaPath)) {
       sharedSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+      if (sharedSchema && !sharedSchema.tables) {
+        sharedSchema = { tables: sharedSchema };
+      }
     }
 
     const testsDir = path.join(permissionsDir, 'tests');
@@ -128,7 +132,14 @@ describe('JSONQL Compliance Tests', () => {
           testCases.forEach((testCase: any) => {
             it(`${testCase.id}: ${testCase.description}`, () => {
               // Use test-specific schema or shared schema
-              const schema = testCase.schema || sharedSchema;
+              let schema = testCase.schema || sharedSchema;
+              if (schema && !schema.tables) {
+                 if (schema.fields) {
+                    schema = { tables: { [testCase.tableName || 'default']: schema } };
+                 } else {
+                    schema = { tables: schema };
+                 }
+              }
               const jsonql = new JSONQL(schema, testCase.tableName);
 
               if (testCase.valid) {

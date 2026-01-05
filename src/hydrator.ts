@@ -93,7 +93,7 @@ export class ResultHydrator {
 
   private initObject(source: any, schema: JSONQLSchema, tableName: string): any {
     const obj: any = {};
-    const tableSchema = schema[tableName];
+    const tableSchema = schema.tables[tableName];
 
     // Copy simple fields
     for (const key of Object.keys(source)) {
@@ -115,7 +115,7 @@ export class ResultHydrator {
   }
 
   private merge(target: any, source: any, schema: JSONQLSchema, tableName: string) {
-    const tableSchema = schema[tableName];
+    const tableSchema = schema.tables[tableName];
     if (!tableSchema || !tableSchema.relations) return;
 
     for (const [relName, relDef] of Object.entries(tableSchema.relations)) {

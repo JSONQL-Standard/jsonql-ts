@@ -27,19 +27,21 @@ describe('Schema Manager & Introspection', () => {
     const introspector = new SQLiteIntrospector(driver);
     const schema = await introspector.introspect();
 
-    expect(schema).toHaveProperty('users');
-    expect(schema.users.fields).toHaveProperty('email');
-    expect(schema.users.fields.email.type).toBe('string');
-    expect(schema.users.fields.age.type).toBe('number');
+    expect(schema.tables).toHaveProperty('users');
+    expect(schema.tables.users.fields).toHaveProperty('email');
+    expect(schema.tables.users.fields.email.type).toBe('string');
+    expect(schema.tables.users.fields.age.type).toBe('number');
   });
 
   it('should merge introspection with file config', async () => {
     // 1. Create a patch file that disables selection of 'email'
     const patch: JSONQLSchema = {
-      users: {
+      tables: {
+        users: {
         fields: {
           email: { type: 'string', allowSelect: false }, // Override
         },
+      },
       },
     };
     fs.writeFileSync(tempSchemaPath, JSON.stringify(patch));
@@ -53,28 +55,30 @@ describe('Schema Manager & Introspection', () => {
     const schema = await manager.load();
 
     // Check Introspection result (base)
-    expect(schema.users.fields.name.allowSelect).toBe(true); // Default from introspector
+    expect(schema.tables.users.fields.name.allowSelect).toBe(true); // Default from introspector
 
     // Check Patch result (override)
-    expect(schema.users.fields.email.allowSelect).toBe(false); // Overridden by file
+    expect(schema.tables.users.fields.email.allowSelect).toBe(false); // Overridden by file
   });
 
   it('should merge runtime override with highest priority', async () => {
     const manager = new SchemaManager({
       introspector: new SQLiteIntrospector(driver),
       runtimeSchema: {
-        users: {
+        tables: {
+          users: {
           fields: {
             status: { type: 'string', allowSelect: false },
           },
+        },
         },
       },
     });
 
     const schema = await manager.load();
 
-    expect(schema.users.fields.status.allowSelect).toBe(false);
-    expect(schema.users.fields.name.allowSelect).toBe(true);
+    expect(schema.tables.users.fields.status.allowSelect).toBe(false);
+    expect(schema.tables.users.fields.name.allowSelect).toBe(true);
   });
 
   it('should execute lifecycle hooks', async () => {
@@ -85,18 +89,20 @@ describe('Schema Manager & Introspection', () => {
         return {
           ...config,
           runtimeSchema: {
-            users: {
+            tables: {
+              users: {
               fields: {
                 dynamic: { type: 'boolean' },
               },
+            },
             },
           },
         };
       },
       afterIntrospect: async (schema) => {
         // Modify schema: e.g., add a virtual field
-        if (schema.users) {
-          schema.users.fields.virtual = { type: 'string' };
+        if (schema.tables.users) {
+          schema.tables.users.fields.virtual = { type: 'string' };
         }
         return schema;
       },
@@ -105,11 +111,11 @@ describe('Schema Manager & Introspection', () => {
     const schema = await manager.load();
 
     // Check beforeIntrospect effect (runtimeSchema added)
-    expect(schema.users.fields.dynamic).toBeDefined();
-    expect(schema.users.fields.dynamic.type).toBe('boolean');
+    expect(schema.tables.users.fields.dynamic).toBeDefined();
+    expect(schema.tables.users.fields.dynamic.type).toBe('boolean');
 
     // Check afterIntrospect effect (virtual field added)
-    expect(schema.users.fields.virtual).toBeDefined();
-    expect(schema.users.fields.virtual.type).toBe('string');
+    expect(schema.tables.users.fields.virtual).toBeDefined();
+    expect(schema.tables.users.fields.virtual.type).toBe('string');
   });
 });

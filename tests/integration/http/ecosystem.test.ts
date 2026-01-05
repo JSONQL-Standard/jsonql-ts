@@ -20,6 +20,9 @@ const SCHEMA_PATH = path.resolve(__dirname, '../../fixtures/suites/standard/sche
 let globalSchema: any = {};
 if (fs.existsSync(SCHEMA_PATH)) {
   globalSchema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf-8'));
+  if (!globalSchema.tables) {
+    globalSchema = { tables: globalSchema };
+  }
 }
 
 // --- NestJS Setup Helper ---

@@ -14,7 +14,8 @@ describe('JSONQL Feature Tests (Pagination & Aggregates)', () => {
   const hydrator = new ResultHydrator();
 
   const schema: JSONQLSchema = {
-    users: {
+    tables: {
+      users: {
       fields: {
         id: { type: 'number' },
         name: { type: 'string' },
@@ -48,6 +49,7 @@ describe('JSONQL Feature Tests (Pagination & Aggregates)', () => {
         approved: { type: 'boolean' },
       },
       relations: {},
+    },
     },
   };
 

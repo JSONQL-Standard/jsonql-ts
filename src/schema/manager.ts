@@ -23,7 +23,7 @@ export class SchemaManager {
       this.options = await this.options.beforeIntrospect(this.options);
     }
 
-    let finalSchema: JSONQLSchema = {};
+    let finalSchema: JSONQLSchema = { tables: {} };
 
     // 1. Priority: Introspection (Base Layer)
     if (this.options.introspector) {
@@ -58,31 +58,39 @@ export class SchemaManager {
   private mergeSchemas(base: JSONQLSchema, override: JSONQLSchema): JSONQLSchema {
     const result: JSONQLSchema = JSON.parse(JSON.stringify(base)); // Deep clone base
 
-    for (const [tableName, tableSchema] of Object.entries(override)) {
-      if (!result[tableName]) {
-        result[tableName] = tableSchema;
-      } else {
-        // Merge fields
-        if (tableSchema.fields) {
-          for (const [fieldName, fieldSchema] of Object.entries(tableSchema.fields)) {
-            if (!result[tableName].fields[fieldName]) {
-              result[tableName].fields[fieldName] = fieldSchema;
-            } else {
-              // Merge field properties (override)
-              result[tableName].fields[fieldName] = {
-                ...result[tableName].fields[fieldName],
-                ...fieldSchema,
-              };
+    // Merge settings
+    if (override.settings) {
+      result.settings = { ...result.settings, ...override.settings };
+    }
+
+    // Merge tables
+    if (override.tables) {
+      for (const [tableName, tableSchema] of Object.entries(override.tables)) {
+        if (!result.tables[tableName]) {
+          result.tables[tableName] = tableSchema;
+        } else {
+          // Merge fields
+          if (tableSchema.fields) {
+            for (const [fieldName, fieldSchema] of Object.entries(tableSchema.fields)) {
+              if (!result.tables[tableName].fields[fieldName]) {
+                result.tables[tableName].fields[fieldName] = fieldSchema;
+              } else {
+                // Merge field properties (override)
+                result.tables[tableName].fields[fieldName] = {
+                  ...result.tables[tableName].fields[fieldName],
+                  ...fieldSchema,
+                };
+              }
             }
           }
-        }
-        // Merge relations
-        if (tableSchema.relations) {
-          if (!result[tableName].relations) {
-            result[tableName].relations = {};
-          }
-          for (const [relationName, relationSchema] of Object.entries(tableSchema.relations)) {
-            result[tableName].relations![relationName] = relationSchema;
+          // Merge relations
+          if (tableSchema.relations) {
+            if (!result.tables[tableName].relations) {
+              result.tables[tableName].relations = {};
+            }
+            for (const [relationName, relationSchema] of Object.entries(tableSchema.relations)) {
+              result.tables[tableName].relations![relationName] = relationSchema;
+            }
           }
         }
       }

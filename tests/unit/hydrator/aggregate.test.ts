@@ -5,7 +5,8 @@ describe('ResultHydrator - Aggregates', () => {
   const hydrator = new ResultHydrator();
 
   const schema: JSONQLSchema = {
-    users: {
+    tables: {
+      users: {
       fields: {},
       relations: {
         posts: { type: 'hasMany', target: 'posts', foreignKey: 'user_id' },
@@ -14,6 +15,7 @@ describe('ResultHydrator - Aggregates', () => {
     posts: {
       fields: {},
       relations: {},
+    },
     },
   };
 

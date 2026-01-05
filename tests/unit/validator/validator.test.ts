@@ -2,11 +2,13 @@ import { JSONQLValidator } from '../../../src/validator';
 import { JSONQLSchema } from '../../../src/types';
 
 const schema: JSONQLSchema = {
-  users: {
-    fields: {
-      id: { type: 'number', allowSelect: true, allowFilter: true },
-      name: { type: 'string', allowSelect: true, allowFilter: true },
-      role: { type: 'string', allowSelect: true, allowFilter: true },
+  tables: {
+    users: {
+      fields: {
+        id: { type: 'number', allowSelect: true, allowFilter: true },
+        name: { type: 'string', allowSelect: true, allowFilter: true },
+        role: { type: 'string', allowSelect: true, allowFilter: true },
+      },
     },
   },
 };

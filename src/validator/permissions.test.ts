@@ -2,25 +2,26 @@ import { JSONQLValidator } from './index';
 import { JSONQLSchema } from '../types';
 
 const schema: JSONQLSchema = {
-  users: {
-    fields: {
-      id: { type: 'number' },
-      name: { type: 'string' },
-      email: { type: 'string', allowSelect: false }, // Hidden field
-      password: { type: 'string', allowSelect: false, allowFilter: false, allowSort: false }, // Completely restricted
-      role: { type: 'string', allowSort: false }, // Can filter but not sort
-      metadata: { type: 'object', allowFilter: false }, // Can select but not filter
-      salary: { type: 'number', allowSelect: false, allowAggregate: true }, // Can aggregate but not select
-      score: { type: 'number', allowGroup: false }, // Cannot group by
-      views: { type: 'number', allowSum: false }, // Cannot sum, but can count/avg
-      rating: { type: 'number', allowAggregate: false, allowAvg: true }, // Can only avg
+  tables: {
+    users: {
+      fields: {
+        id: { type: 'number' },
+        name: { type: 'string' },
+        email: { type: 'string', allowSelect: false }, // Hidden field
+        password: { type: 'string', allowSelect: false, allowFilter: false, allowSort: false }, // Completely restricted
+        role: { type: 'string', allowSort: false }, // Can filter but not sort
+        metadata: { type: 'object', allowFilter: false }, // Can select but not filter
+        salary: { type: 'number', allowSelect: false, allowAggregate: true }, // Can aggregate but not select
+        score: { type: 'number', allowGroup: false }, // Cannot group by
+        views: { type: 'number', allowSum: false }, // Cannot sum, but can count/avg
+        rating: { type: 'number', allowAggregate: false, allowAvg: true }, // Can only avg
+      },
+      relations: {
+        posts: { type: 'hasMany', target: 'posts' },
+        secrets: { type: 'hasOne', target: 'secrets', allowInclude: false }, // Restricted relation
+      },
     },
-    relations: {
-      posts: { type: 'hasMany', target: 'posts' },
-      secrets: { type: 'hasOne', target: 'secrets', allowInclude: false }, // Restricted relation
-    },
-  },
-  posts: {
+    posts: {
     fields: {
       id: { type: 'number' },
       title: { type: 'string' },
@@ -31,6 +32,7 @@ const schema: JSONQLSchema = {
       key: { type: 'string' },
     },
   },
+  }
 };
 
 describe('JSONQLValidator Permissions', () => {
@@ -120,9 +122,11 @@ describe('JSONQLValidator Permissions', () => {
     // But we can't modify const schema easily.
     // Let's create a new validator with custom schema for this test.
     const customSchema: JSONQLSchema = {
-      items: {
-        fields: {
-          price: { type: 'number', allowAggregate: false },
+      tables: {
+        items: {
+          fields: {
+            price: { type: 'number', allowAggregate: false },
+          },
         },
       },
     };

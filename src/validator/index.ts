@@ -28,8 +28,35 @@ export class JSONQLValidator {
   validate(query: JSONQLQuery): ValidationResult {
     const errors: ValidationError[] = [];
 
+    // Check global settings
+    if (this.schema.settings) {
+      if (
+        this.schema.settings.allowAggregate === false &&
+        (query.aggregate || query.groupBy)
+      ) {
+        errors.push({
+          path: 'aggregate',
+          message: 'Aggregations are disabled in this schema',
+          code: 'AGGREGATE_DISABLED',
+        });
+        return { valid: false, errors };
+      }
+
+      if (this.schema.settings.maxDepth !== undefined) {
+        const depth = this.calculateDepth(query);
+        if (depth > this.schema.settings.maxDepth) {
+          errors.push({
+            path: 'include',
+            message: `Query depth ${depth} exceeds maximum allowed depth of ${this.schema.settings.maxDepth}`,
+            code: 'QUERY_TOO_DEEP',
+          });
+          return { valid: false, errors };
+        }
+      }
+    }
+
     // Validate table exists
-    if (!this.schema[this.tableName]) {
+    if (!this.schema.tables[this.tableName]) {
       errors.push({
         path: 'table',
         message: `Table "${this.tableName}" not found in schema`,
@@ -38,7 +65,7 @@ export class JSONQLValidator {
       return { valid: false, errors };
     }
 
-    const tableSchema = this.schema[this.tableName];
+    const tableSchema = this.schema.tables[this.tableName];
 
     // Validate fields
     if (query.fields) {
@@ -289,7 +316,7 @@ export class JSONQLValidator {
 
       // Validate nested field in related table
       const relatedTableName = tableSchema.relations[relation].target;
-      const relatedTable = this.schema[relatedTableName];
+      const relatedTable = this.schema.tables[relatedTableName];
       const nestedFieldName = nestedPath.join('.');
       const relatedFieldSchema = relatedTable?.fields[nestedFieldName];
 
@@ -418,5 +445,25 @@ export class JSONQLValidator {
    */
   getTableName(): string {
     return this.tableName;
+  }
+
+  /**
+   * Calculate the depth of the query based on includes
+   */
+  private calculateDepth(query: JSONQLQuery): number {
+    if (!query.include) {
+      return 0;
+    }
+
+    if (Array.isArray(query.include)) {
+      return 1;
+    }
+
+    let maxChildDepth = 0;
+    for (const subQuery of Object.values(query.include)) {
+      maxChildDepth = Math.max(maxChildDepth, this.calculateDepth(subQuery));
+    }
+
+    return 1 + maxChildDepth;
   }
 }

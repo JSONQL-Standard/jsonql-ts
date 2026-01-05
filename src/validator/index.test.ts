@@ -7,27 +7,28 @@ describe('JSONQLValidator', () => {
 
   beforeEach(() => {
     schema = {
-      users: {
-        fields: {
-          id: { type: 'number', required: true },
-          name: { type: 'string', required: true },
-          email: { type: 'string', required: true },
-          age: { type: 'number' },
-          status: { type: 'string' },
-          created_at: { type: 'date' },
-        },
-        relations: {
-          posts: {
-            type: 'hasMany',
-            target: 'posts',
+      tables: {
+        users: {
+          fields: {
+            id: { type: 'number', required: true },
+            name: { type: 'string', required: true },
+            email: { type: 'string', required: true },
+            age: { type: 'number' },
+            status: { type: 'string' },
+            created_at: { type: 'date' },
           },
-          profile: {
-            type: 'hasOne',
-            target: 'profiles',
+          relations: {
+            posts: {
+              type: 'hasMany',
+              target: 'posts',
+            },
+            profile: {
+              type: 'hasOne',
+              target: 'profiles',
+            },
           },
         },
-      },
-      posts: {
+        posts: {
         fields: {
           id: { type: 'number', required: true },
           title: { type: 'string', required: true },
@@ -49,6 +50,7 @@ describe('JSONQLValidator', () => {
           user_id: { type: 'number' },
         },
       },
+      }
     };
 
     validator = new JSONQLValidator(schema, 'users');

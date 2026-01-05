@@ -64,7 +64,15 @@ export interface JSONQLFieldReference {
 }
 
 export interface JSONQLSchema {
-  [tableName: string]: JSONQLTableSchema;
+  tables: {
+    [tableName: string]: JSONQLTableSchema;
+  };
+  settings?: JSONQLSettings;
+}
+
+export interface JSONQLSettings {
+  allowAggregate?: boolean;
+  maxDepth?: number;
 }
 
 export interface JSONQLTableSchema {

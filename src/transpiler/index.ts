@@ -197,7 +197,7 @@ export class SQLTranspiler {
   ) {
     if (!query.include) return;
 
-    const tableSchema = schema[parentTable];
+    const tableSchema = schema.tables[parentTable];
     if (!tableSchema || !tableSchema.relations) {
       throw new Error(`No relations defined for table: ${parentTable}`);
     }
@@ -341,7 +341,7 @@ export class SQLTranspiler {
           );
         }
       } else {
-        const targetSchema = schema[targetTable];
+        const targetSchema = schema.tables[targetTable];
         if (targetSchema && targetSchema.fields) {
           for (const field of Object.keys(targetSchema.fields)) {
             selectParts.push(

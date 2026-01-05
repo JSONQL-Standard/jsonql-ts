@@ -5,7 +5,8 @@ describe('JSONQL Main Class', () => {
 
   beforeEach(() => {
     schema = {
-      users: {
+      tables: {
+        users: {
         fields: {
           id: { type: 'number', required: true },
           name: { type: 'string', required: true },
@@ -15,6 +16,7 @@ describe('JSONQL Main Class', () => {
         relations: {
           posts: { type: 'hasMany', target: 'posts' },
         },
+      },
       },
     };
   });

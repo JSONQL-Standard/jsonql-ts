@@ -6,7 +6,7 @@ export class SQLiteIntrospector implements JSONQLIntrospector {
   constructor(private driver: DatabaseDriver) {}
 
   async introspect(): Promise<JSONQLSchema> {
-    const schema: JSONQLSchema = {};
+    const schema: JSONQLSchema = { tables: {} };
 
     // 1. Get all tables
     const tables = await this.driver.query(
@@ -16,7 +16,7 @@ export class SQLiteIntrospector implements JSONQLIntrospector {
 
     for (const table of tables) {
       const tableName = table.name;
-      schema[tableName] = {
+      schema.tables[tableName] = {
         fields: {},
         relations: {}, // Relations are harder in SQLite without FK introspection, skipping for basic example
       };
@@ -41,7 +41,7 @@ export class SQLiteIntrospector implements JSONQLIntrospector {
           // Primary key specific logic if needed
         }
 
-        schema[tableName].fields[fieldName] = fieldSchema;
+        schema.tables[tableName].fields[fieldName] = fieldSchema;
       }
     }
 

@@ -2,18 +2,19 @@ import { JSONQLValidator } from './index';
 import { JSONQLSchema, JSONQLQuery } from '../types';
 
 const mockSchema: JSONQLSchema = {
-  users: {
-    fields: {
-      id: { type: 'number' },
-      name: { type: 'string' },
-      role: { type: 'string' },
-      age: { type: 'number' },
+  tables: {
+    users: {
+      fields: {
+        id: { type: 'number' },
+        name: { type: 'string' },
+        role: { type: 'string' },
+        age: { type: 'number' },
+      },
+      relations: {
+        posts: { target: 'posts', type: 'hasMany' },
+      },
     },
-    relations: {
-      posts: { target: 'posts', type: 'hasMany' },
-    },
-  },
-  posts: {
+    posts: {
     fields: {
       id: { type: 'number' },
       title: { type: 'string' },
@@ -24,6 +25,7 @@ const mockSchema: JSONQLSchema = {
       author: { target: 'users', type: 'belongsTo' },
     },
   },
+  }
 };
 
 describe('JSONQLValidator v1.1 Features', () => {
