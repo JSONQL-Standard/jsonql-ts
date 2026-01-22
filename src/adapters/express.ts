@@ -5,6 +5,8 @@ import { ResultHydrator } from '../hydrator';
 import { JSONQLValidator } from '../validator';
 import { AdapterOptions, FrameworkAdapter } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
+import { isMutation, JSONQLMutation } from '../types';
+import { inferMutationFromRequest } from './utils';
 
 import { DatabaseDriver } from '../drivers/types';
 export interface JsonqlExpressOptions extends AdapterOptions<Request> {
@@ -45,8 +47,16 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       rawQuery = await this.options.beforeParse(rawQuery, req);
     }
 
-    // 2. Parse
-    let query = this.parser.parse(rawQuery);
+    // 2. Infer op from HTTP method if not provided
+    rawQuery = inferMutationFromRequest(req.method, rawQuery);
+
+    // 3. Parse
+    let query;
+    try {
+      query = this.parser.parse(rawQuery);
+    } catch (e: any) {
+      throw { status: 400, error: 'Invalid JSONQL Query', details: e.message };
+    }
 
     if (this.options.afterParse) {
       query = await this.options.afterParse(query, req);
@@ -125,17 +135,26 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
       query = await this.options.beforeValidate(query, req);
     }
 
+    const resolvedSchema = this.options.schemaResolver
+      ? await this.options.schemaResolver(req)
+      : this.options.schema;
+
     // 4. Validate against Schema (if provided)
-    if (this.options.schema && tableName) {
-      const validator = new JSONQLValidator(this.options.schema, tableName);
-      const validation = validator.validate(query);
+    if (resolvedSchema && tableName) {
+      const tableSchema = resolvedSchema.tables?.[tableName];
+      const shouldValidate = !!tableSchema?.fields;
 
-      if (this.options.afterValidate) {
-        await this.options.afterValidate(validation, req);
-      }
+      if (shouldValidate) {
+        const validator = new JSONQLValidator(resolvedSchema, tableName);
+        const validation = validator.validate(query);
 
-      if (!validation.valid) {
-        throw { status: 400, error: 'Validation Error', details: validation.errors };
+        if (this.options.afterValidate) {
+          await this.options.afterValidate(validation, req);
+        }
+
+        if (!validation.valid) {
+          throw { status: 400, error: 'Validation Error', details: validation.errors };
+        }
       }
     }
 
@@ -143,13 +162,27 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
     (req as any).jsonql = query;
 
     // 6. Auto-Handle if executor is provided
-    if (this.canExecute && this.transpiler && this.hydrator) {
+    if (this.canExecute && this.transpiler) {
       if (!tableName) {
         return null; // Pass to next()
       }
 
+      let statement = query;
+      const isMutationStatement = isMutation(statement);
+
+      if (isMutationStatement) {
+        const mutation = statement as JSONQLMutation;
+        if (mutation.op === 'create' && this.options.beforeCreate) {
+          statement = await this.options.beforeCreate(mutation, req);
+        } else if (mutation.op === 'update' && this.options.beforeUpdate) {
+          statement = await this.options.beforeUpdate(mutation, req);
+        } else if (mutation.op === 'delete' && this.options.beforeDelete) {
+          statement = await this.options.beforeDelete(mutation, req);
+        }
+      }
+
       // Transpile
-      const { sql, parameters } = this.transpiler.transpile(query, tableName, this.options.schema);
+      const { sql, parameters } = this.transpiler.transpile(statement, tableName, resolvedSchema);
 
       this.logger.debug(
         `[JSONQL] -----------------------------------------------------------------`,
@@ -180,22 +213,39 @@ export class ExpressAdapter implements FrameworkAdapter<Request> {
         `[JSONQL] -----------------------------------------------------------------`,
       );
 
-      if (this.options.beforeHydrate) {
-        flatRows = await this.options.beforeHydrate(flatRows, req);
+      if (isMutationStatement) {
+        const mutation = statement as JSONQLMutation;
+        let result: any = { meta: { query: statement }, data: flatRows };
+        if (mutation.op === 'create' && this.options.afterCreate) {
+          result = await this.options.afterCreate(result, req);
+        } else if (mutation.op === 'update' && this.options.afterUpdate) {
+          result = await this.options.afterUpdate(result, req);
+        } else if (mutation.op === 'delete' && this.options.afterDelete) {
+          result = await this.options.afterDelete(result, req);
+        }
+        if (this.options.afterQuery) {
+          result = await this.options.afterQuery(result, req);
+        }
+        return result;
       }
 
-      // Hydrate
-      let data = this.hydrator.hydrate(flatRows, this.options.schema, tableName);
+      if (this.hydrator) {
+        if (this.options.beforeHydrate) {
+          flatRows = await this.options.beforeHydrate(flatRows, req);
+        }
 
-      if (this.options.afterHydrate) {
-        data = await this.options.afterHydrate(data, req);
+        let data = this.hydrator.hydrate(flatRows, resolvedSchema, tableName);
+
+        if (this.options.afterHydrate) {
+          data = await this.options.afterHydrate(data, req);
+        }
+
+        if (this.options.afterQuery) {
+          data = await this.options.afterQuery(data, req);
+        }
+
+        return { meta: { query }, data };
       }
-
-      if (this.options.afterQuery) {
-        data = await this.options.afterQuery(data, req);
-      }
-
-      return { meta: { query }, data };
     }
 
     return null;

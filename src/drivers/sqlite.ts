@@ -38,7 +38,7 @@ export class SQLiteDriver implements DatabaseDriver {
     if (this.wrapperDb) {
       return this.wrapperDb.all(sql, params);
     }
-    
+
     if (!this.db) throw new Error('Not connected');
     return new Promise<any[]>((resolve, reject) => {
       this.db!.all(sql, params, (err, rows: any[]) => {
@@ -50,19 +50,21 @@ export class SQLiteDriver implements DatabaseDriver {
 
   async disconnect() {
     if (this.wrapperDb) {
-      // 'sqlite' package usually manages its own connection, 
+      // 'sqlite' package usually manages its own connection,
       // but if we want to close it:
       if (this.wrapperDb.close) {
-          await this.wrapperDb.close();
+        await this.wrapperDb.close();
       }
       return;
     }
 
     if (this.db) {
-      return new Promise<void>((resolve) => this.db!.close((err) => {
-        if (err) console.error(err);
-        resolve();
-      }));
+      return new Promise<void>((resolve) =>
+        this.db!.close((err) => {
+          if (err) console.error(err);
+          resolve();
+        }),
+      );
     }
   }
 }

@@ -1,4 +1,10 @@
-import { JSONQLQuery, JSONQLWhere, JSONQLParserOptions } from '../types';
+import {
+  JSONQLQuery,
+  JSONQLWhere,
+  JSONQLParserOptions,
+  JSONQLStatement,
+  JSONQLMutation,
+} from '../types';
 
 /**
  * Parses JSONQL v1.0 query strings and objects into structured query objects
@@ -18,7 +24,7 @@ export class JSONQLParser {
   /**
    * Parse a JSONQL query from a JSON object or string
    */
-  parse(input: string | object): JSONQLQuery {
+  parse(input: string | object): JSONQLStatement {
     let queryObject: any;
 
     if (typeof input === 'string') {
@@ -33,17 +39,30 @@ export class JSONQLParser {
       queryObject = input;
     }
 
-    return this.parseQuery(queryObject);
+    return this.parseStatement(queryObject);
+  }
+
+  private parseStatement(obj: any): JSONQLStatement {
+    if (!obj || typeof obj !== 'object') {
+      throw new Error('Query must be an object');
+    }
+
+    const op = obj.op as string | undefined;
+    if (op && op !== 'query') {
+      return this.parseMutation(obj);
+    }
+
+    if (obj.data !== undefined || obj.patch !== undefined) {
+      return this.parseMutation(obj);
+    }
+
+    return this.parseQuery(obj);
   }
 
   /**
    * Parse a query object into a structured JSONQLQuery
    */
   private parseQuery(obj: any, isSubQuery = false): JSONQLQuery {
-    if (!obj || typeof obj !== 'object') {
-      throw new Error('Query must be an object');
-    }
-
     // Validate version
     if (!isSubQuery) {
       if (obj.version !== undefined && obj.version !== '1.0' && obj.version !== '1.1') {
@@ -248,6 +267,143 @@ export class JSONQLParser {
     return query;
   }
 
+  private parseMutation(obj: any): JSONQLMutation {
+    if (!obj || typeof obj !== 'object') {
+      throw new Error('Mutation must be an object');
+    }
+
+    const allowedProperties = new Set([
+      'op',
+      'version',
+      'from',
+      'where',
+      'limit',
+      'data',
+      'patch',
+      'fields',
+    ]);
+    for (const key of Object.keys(obj)) {
+      if (!allowedProperties.has(key)) {
+        throw new Error(`Unknown property "${key}" in mutation`);
+      }
+    }
+
+    if (obj.op !== undefined && !['create', 'update', 'delete'].includes(obj.op)) {
+      throw new Error('Mutation op must be one of "create", "update", or "delete"');
+    }
+
+    if (obj.version !== undefined && obj.version !== '1.0' && obj.version !== '1.1') {
+      throw new Error('Mutation version must be "1.0" or "1.1"');
+    }
+
+    const common: {
+      version?: '1.0' | '1.1';
+      from?: string;
+      where?: JSONQLWhere;
+      limit?: number;
+      fields?: string[];
+    } = {};
+
+    if (obj.version) {
+      common.version = obj.version;
+    }
+
+    if (obj.from !== undefined) {
+      if (typeof obj.from !== 'string') {
+        throw new Error('from must be a string');
+      }
+      common.from = obj.from;
+    }
+
+    if (obj.where !== undefined) {
+      common.where = this.parseWhere(obj.where, 0);
+    }
+
+    if (obj.limit !== undefined) {
+      if (typeof obj.limit !== 'number' || obj.limit < 0) {
+        throw new Error('limit must be a non-negative number');
+      }
+      if (obj.limit > this.options.maxLimit) {
+        throw new Error(`limit must not exceed ${this.options.maxLimit}`);
+      }
+      common.limit = obj.limit;
+    }
+
+    if (obj.fields !== undefined) {
+      if (!Array.isArray(obj.fields)) {
+        throw new Error('fields must be an array of strings');
+      }
+      if (obj.fields.length === 0) {
+        throw new Error('fields array cannot be empty');
+      }
+      for (const field of obj.fields) {
+        if (typeof field !== 'string') {
+          throw new Error('Each field must be a string');
+        }
+        if (!this.isValidIdentifier(field)) {
+          throw new Error(`Invalid field name in fields: "${field}"`);
+        }
+      }
+      common.fields = obj.fields;
+    }
+
+    if (obj.op === 'create' || obj.data !== undefined) {
+      if (obj.data === undefined) {
+        throw new Error('create mutation requires data');
+      }
+      if (
+        typeof obj.data !== 'object' ||
+        obj.data === null ||
+        (Array.isArray(obj.data) && obj.data.length === 0)
+      ) {
+        throw new Error('data must be a non-empty object or array of objects');
+      }
+      if (Array.isArray(obj.data)) {
+        for (const row of obj.data) {
+          if (!row || typeof row !== 'object' || Array.isArray(row)) {
+            throw new Error('Each data row must be an object');
+          }
+        }
+      } else if (typeof obj.data !== 'object') {
+        throw new Error('data must be an object or array of objects');
+      }
+      return {
+        op: 'create',
+        ...common,
+        data: obj.data,
+      } as JSONQLMutation;
+    }
+
+    if (obj.op === 'update' || obj.patch !== undefined) {
+      if (obj.patch === undefined) {
+        throw new Error('update mutation requires patch');
+      }
+      if (!obj.patch || typeof obj.patch !== 'object' || Array.isArray(obj.patch)) {
+        throw new Error('patch must be an object');
+      }
+      if (!obj.where) {
+        throw new Error('update mutation requires where clause');
+      }
+      return {
+        op: 'update',
+        ...common,
+        patch: obj.patch,
+      } as JSONQLMutation;
+    }
+
+    if (obj.op === 'delete') {
+      if (!obj.where) {
+        throw new Error('delete mutation requires where clause');
+      }
+      return {
+        op: 'delete',
+        ...common,
+      } as JSONQLMutation;
+    }
+
+    throw new Error('Mutation op is required for delete operations');
+  }
+
   /**
    * Parse a where clause
    */
@@ -370,8 +526,8 @@ export class JSONQLParser {
   /**
    * Stringify a JSONQLQuery back to JSON
    */
-  stringify(query: JSONQLQuery): string {
-    return JSON.stringify(query, null, 2);
+  stringify(statement: JSONQLStatement): string {
+    return JSON.stringify(statement, null, 2);
   }
 
   private isValidIdentifier(id: string): boolean {

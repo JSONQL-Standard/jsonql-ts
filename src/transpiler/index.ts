@@ -1,4 +1,11 @@
-import { JSONQLQuery, JSONQLWhere, JSONQLSchema } from '../types';
+import {
+  JSONQLQuery,
+  JSONQLWhere,
+  JSONQLSchema,
+  JSONQLStatement,
+  JSONQLMutation,
+  isMutation,
+} from '../types';
 import { SQLDialect, SQLiteDialect } from './dialect';
 
 export interface TranspilationResult {
@@ -35,7 +42,16 @@ export class SQLTranspiler {
     }
   }
 
-  transpile(query: JSONQLQuery, tableName: string, schema?: JSONQLSchema): TranspilationResult {
+  transpile(
+    statement: JSONQLStatement,
+    tableName: string,
+    schema?: JSONQLSchema,
+  ): TranspilationResult {
+    if (isMutation(statement)) {
+      return this.transpileMutation(statement, tableName);
+    }
+
+    const query = statement as JSONQLQuery;
     // Use dialect quoting
     const quotedTableName = this.dialect.quoteIdentifier(tableName);
     if (!this.isValidIdentifier(tableName)) {
@@ -183,6 +199,142 @@ export class SQLTranspiler {
     }
 
     return { sql, parameters };
+  }
+
+  private transpileMutation(mutation: JSONQLMutation, tableName: string): TranspilationResult {
+    const resolvedTable = mutation.from || tableName;
+    if (!resolvedTable) {
+      throw new Error('Mutation requires a table name');
+    }
+    if (!this.isValidIdentifier(resolvedTable)) {
+      throw new Error(`Invalid table name: ${resolvedTable}`);
+    }
+
+    const quotedTableName = this.dialect.quoteIdentifier(resolvedTable);
+    const parameters: any[] = [];
+    const supportsReturning = this.dialect.name === 'postgres';
+
+    const addParam = (value: any) => {
+      const placeholder = this.dialect.getPlaceholder(parameters.length);
+      parameters.push(value);
+      return placeholder;
+    };
+
+    if (mutation.op === 'create') {
+      const rows = Array.isArray(mutation.data) ? mutation.data : [mutation.data];
+      if (rows.length === 0) {
+        throw new Error('Create mutation requires at least one row');
+      }
+
+      const columns = Object.keys(rows[0]);
+      if (columns.length === 0) {
+        throw new Error('Create mutation requires at least one column');
+      }
+
+      for (const column of columns) {
+        if (!this.isValidIdentifier(column)) {
+          throw new Error(`Invalid field name: ${column}`);
+        }
+      }
+
+      for (const row of rows) {
+        const rowKeys = Object.keys(row);
+        if (rowKeys.length !== columns.length) {
+          throw new Error('All rows in create mutation must have the same fields');
+        }
+        for (const column of columns) {
+          if (!(column in row)) {
+            throw new Error('All rows in create mutation must have the same fields');
+          }
+        }
+      }
+
+      const quotedColumns = columns.map((column) => this.dialect.quoteIdentifier(column));
+      const valuesSql = rows
+        .map((row) => {
+          const placeholders = columns.map((column) => addParam((row as any)[column]));
+          return `(${placeholders.join(', ')})`;
+        })
+        .join(', ');
+
+      let sql = `INSERT INTO ${quotedTableName} (${quotedColumns.join(', ')}) VALUES ${valuesSql}`;
+
+      if (mutation.fields && supportsReturning) {
+        const returningColumns = mutation.fields.map((field) => {
+          if (!this.isValidIdentifier(field)) {
+            throw new Error(`Invalid field name: ${field}`);
+          }
+          return this.dialect.quoteIdentifier(field);
+        });
+        sql += ` RETURNING ${returningColumns.join(', ')}`;
+      }
+
+      return { sql, parameters };
+    }
+
+    if (mutation.op === 'update') {
+      if (!mutation.where) {
+        throw new Error('Update mutation requires where clause');
+      }
+      const setFields = Object.keys(mutation.patch);
+      if (setFields.length === 0) {
+        throw new Error('Update mutation requires at least one patch field');
+      }
+
+      const setSql = setFields
+        .map((field) => {
+          if (!this.isValidIdentifier(field)) {
+            throw new Error(`Invalid field name: ${field}`);
+          }
+          return `${this.dialect.quoteIdentifier(field)} = ${addParam(
+            (mutation.patch as any)[field],
+          )}`;
+        })
+        .join(', ');
+
+      let sql = `UPDATE ${quotedTableName} SET ${setSql}`;
+      const conditions = this.parseWhere(mutation.where, parameters, quotedTableName);
+      if (conditions.length > 0) {
+        sql += ` WHERE ${conditions.join(' AND ')}`;
+      }
+
+      if (mutation.fields && supportsReturning) {
+        const returningColumns = mutation.fields.map((field) => {
+          if (!this.isValidIdentifier(field)) {
+            throw new Error(`Invalid field name: ${field}`);
+          }
+          return this.dialect.quoteIdentifier(field);
+        });
+        sql += ` RETURNING ${returningColumns.join(', ')}`;
+      }
+
+      return { sql, parameters };
+    }
+
+    if (mutation.op === 'delete') {
+      if (!mutation.where) {
+        throw new Error('Delete mutation requires where clause');
+      }
+      let sql = `DELETE FROM ${quotedTableName}`;
+      const conditions = this.parseWhere(mutation.where, parameters, quotedTableName);
+      if (conditions.length > 0) {
+        sql += ` WHERE ${conditions.join(' AND ')}`;
+      }
+
+      if (mutation.fields && supportsReturning) {
+        const returningColumns = mutation.fields.map((field) => {
+          if (!this.isValidIdentifier(field)) {
+            throw new Error(`Invalid field name: ${field}`);
+          }
+          return this.dialect.quoteIdentifier(field);
+        });
+        sql += ` RETURNING ${returningColumns.join(', ')}`;
+      }
+
+      return { sql, parameters };
+    }
+
+    throw new Error(`Unsupported mutation op: ${(mutation as any).op}`);
   }
 
   private processIncludes(

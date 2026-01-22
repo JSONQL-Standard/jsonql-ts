@@ -9,8 +9,8 @@ export * from './builder';
 
 import { JSONQLParser } from './parser';
 import { JSONQLValidator } from './validator';
-import { JSONQLQueryBuilder } from './builder';
-import { JSONQLQuery, JSONQLSchema, JSONQLParserOptions } from './types';
+import { JSONQLQueryBuilder, JSONQLMutationBuilder } from './builder';
+import { JSONQLStatement, JSONQLSchema, JSONQLParserOptions } from './types';
 
 /**
  * Main JSONQL class that combines parser, validator, and builder
@@ -27,14 +27,14 @@ export class JSONQL {
   /**
    * Parse a JSONQL query
    */
-  parse(input: string | object): JSONQLQuery {
+  parse(input: string | object): JSONQLStatement {
     return this.parser.parse(input);
   }
 
   /**
    * Validate a query against the schema
    */
-  validate(query: JSONQLQuery) {
+  validate(query: JSONQLStatement) {
     if (!this.validator) {
       throw new Error('No schema provided for validation');
     }
@@ -55,6 +55,13 @@ export class JSONQL {
    */
   createBuilder(): JSONQLQueryBuilder {
     return new JSONQLQueryBuilder();
+  }
+
+  /**
+   * Create a new mutation builder
+   */
+  createMutationBuilder(): JSONQLMutationBuilder {
+    return new JSONQLMutationBuilder();
   }
 
   /**

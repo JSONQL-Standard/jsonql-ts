@@ -1,9 +1,10 @@
-import { JSONQLSchema, JSONQLQuery, ValidationResult } from '../types';
+import { JSONQLSchema, JSONQLStatement, ValidationResult } from '../types';
 import { DatabaseDriver } from '../driver';
 import { Logger } from '../logger';
 
 export interface AdapterOptions<Context = any> {
   schema?: JSONQLSchema;
+  schemaResolver?: (context: Context) => Promise<JSONQLSchema | undefined> | JSONQLSchema | undefined;
   driver?: DatabaseDriver;
   execute?: (sql: string, params: any[]) => Promise<any[]>;
   dialect?: 'sqlite' | 'postgres' | 'mysql';
@@ -29,13 +30,39 @@ export interface AdapterOptions<Context = any> {
 
   // Lifecycle Hooks
   beforeParse?: (rawInput: any, context: Context) => Promise<any> | any;
-  afterParse?: (query: JSONQLQuery, context: Context) => Promise<JSONQLQuery> | JSONQLQuery;
-  beforeQuery?: (query: JSONQLQuery, context: Context) => Promise<JSONQLQuery> | JSONQLQuery;
-  beforeValidate?: (query: JSONQLQuery, context: Context) => Promise<JSONQLQuery> | JSONQLQuery;
+  afterParse?: (
+    query: JSONQLStatement,
+    context: Context,
+  ) => Promise<JSONQLStatement> | JSONQLStatement;
+  beforeQuery?: (
+    query: JSONQLStatement,
+    context: Context,
+  ) => Promise<JSONQLStatement> | JSONQLStatement;
+  beforeValidate?: (
+    query: JSONQLStatement,
+    context: Context,
+  ) => Promise<JSONQLStatement> | JSONQLStatement;
   afterValidate?: (result: ValidationResult, context: Context) => Promise<void> | void;
   beforeHydrate?: (flatRows: any[], context: Context) => Promise<any[]> | any[];
   afterHydrate?: (result: any, context: Context) => Promise<any> | any;
   afterQuery?: (result: any, context: Context) => Promise<any> | any;
+
+  // Mutation Hooks
+  beforeCreate?: (
+    mutation: JSONQLStatement,
+    context: Context,
+  ) => Promise<JSONQLStatement> | JSONQLStatement;
+  afterCreate?: (result: any, context: Context) => Promise<any> | any;
+  beforeUpdate?: (
+    mutation: JSONQLStatement,
+    context: Context,
+  ) => Promise<JSONQLStatement> | JSONQLStatement;
+  afterUpdate?: (result: any, context: Context) => Promise<any> | any;
+  beforeDelete?: (
+    mutation: JSONQLStatement,
+    context: Context,
+  ) => Promise<JSONQLStatement> | JSONQLStatement;
+  afterDelete?: (result: any, context: Context) => Promise<any> | any;
 }
 
 export interface FrameworkAdapter<Context = any> {

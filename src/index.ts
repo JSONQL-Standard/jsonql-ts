@@ -15,6 +15,7 @@ export * from './drivers/mysql';
 export * from './driver';
 
 export * from './adapters/types';
+export * from './adapters/utils';
 export * from './adapters/express';
 export * from './adapters/fastify';
 export * from './adapters/nestjs';

@@ -6,6 +6,8 @@ import { ResultHydrator } from '../hydrator';
 import { JSONQLValidator } from '../validator';
 import { AdapterOptions, FrameworkAdapter } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
+import { isMutation, JSONQLMutation } from '../types';
+import { inferMutationFromRequest } from './utils';
 
 export type JsonqlFastifyOptions = AdapterOptions<FastifyRequest>;
 
@@ -47,7 +49,10 @@ export class FastifyAdapter implements FrameworkAdapter<FastifyRequest> {
       rawQuery = await this.options.beforeParse(rawQuery, req);
     }
 
-    // 2. Parse
+    // 2. Infer op from HTTP method if not provided
+    rawQuery = inferMutationFromRequest(req.method, rawQuery);
+
+    // 3. Parse
     let query;
     try {
       query = this.parser.parse(rawQuery);
@@ -176,17 +181,26 @@ export class FastifyAdapter implements FrameworkAdapter<FastifyRequest> {
       query = await this.options.beforeQuery(query, req);
     }
 
-    if (this.options.schema && tableName) {
-      const validator = new JSONQLValidator(this.options.schema, tableName);
-      if (this.options.beforeValidate) {
-        query = await this.options.beforeValidate(query, req);
-      }
-      const validationResult = validator.validate(query);
-      if (this.options.afterValidate) {
-        await this.options.afterValidate(validationResult, req);
-      }
-      if (!validationResult.valid) {
-        throw { status: 400, error: 'Validation Error', details: validationResult.errors };
+    const resolvedSchema = this.options.schemaResolver
+      ? await this.options.schemaResolver(req)
+      : this.options.schema;
+
+    if (resolvedSchema && tableName) {
+      const tableSchema = resolvedSchema.tables?.[tableName];
+      const shouldValidate = !!tableSchema?.fields;
+
+      if (shouldValidate) {
+        const validator = new JSONQLValidator(resolvedSchema, tableName);
+        if (this.options.beforeValidate) {
+          query = await this.options.beforeValidate(query, req);
+        }
+        const validationResult = validator.validate(query);
+        if (this.options.afterValidate) {
+          await this.options.afterValidate(validationResult, req);
+        }
+        if (!validationResult.valid) {
+          throw { status: 400, error: 'Validation Error', details: validationResult.errors };
+        }
       }
     }
 
@@ -195,7 +209,21 @@ export class FastifyAdapter implements FrameworkAdapter<FastifyRequest> {
       return { query }; // Dry run
     }
 
-    const sqlResult = this.transpiler!.transpile(query, tableName, this.options.schema);
+    let statement = query;
+    const isMutationStatement = isMutation(statement);
+
+    if (isMutationStatement) {
+      const mutation = statement as JSONQLMutation;
+      if (mutation.op === 'create' && this.options.beforeCreate) {
+        statement = await this.options.beforeCreate(mutation, req);
+      } else if (mutation.op === 'update' && this.options.beforeUpdate) {
+        statement = await this.options.beforeUpdate(mutation, req);
+      } else if (mutation.op === 'delete' && this.options.beforeDelete) {
+        statement = await this.options.beforeDelete(mutation, req);
+      }
+    }
+
+    const sqlResult = this.transpiler!.transpile(statement, tableName, resolvedSchema);
     this.logger.debug(`SQL: ${sqlResult.sql}`, sqlResult.parameters);
 
     const startTime = Date.now();
@@ -206,11 +234,27 @@ export class FastifyAdapter implements FrameworkAdapter<FastifyRequest> {
     const duration = Date.now() - startTime;
     this.logger.debug(`Execution time: ${duration}ms`);
 
+    if (isMutationStatement) {
+      const mutation = statement as JSONQLMutation;
+      let result: any = { meta: { query: statement }, data: rows };
+      if (mutation.op === 'create' && this.options.afterCreate) {
+        result = await this.options.afterCreate(result, req);
+      } else if (mutation.op === 'update' && this.options.afterUpdate) {
+        result = await this.options.afterUpdate(result, req);
+      } else if (mutation.op === 'delete' && this.options.afterDelete) {
+        result = await this.options.afterDelete(result, req);
+      }
+      if (this.options.afterQuery) {
+        result = await this.options.afterQuery(result, req);
+      }
+      return result;
+    }
+
     if (this.options.beforeHydrate) {
       rows = await this.options.beforeHydrate(rows, req);
     }
 
-    let data = this.hydrator!.hydrate(rows, this.options.schema, tableName);
+    let data = this.hydrator!.hydrate(rows, resolvedSchema, tableName);
 
     if (this.options.afterHydrate) {
       data = await this.options.afterHydrate(data, req);

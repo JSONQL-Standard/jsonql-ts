@@ -4,6 +4,12 @@ import {
   JSONQLCondition,
   JSONQLFieldReference,
   JSONQLLogicalOperator,
+  JSONQLMutation,
+  JSONQLCreateMutation,
+  JSONQLUpdateMutation,
+  JSONQLDeleteMutation,
+  JSONQLInsertData,
+  JSONQLPatch,
 } from '../types';
 
 /**
@@ -122,6 +128,64 @@ export class JSONQLQueryBuilder {
     this.query = {
       version: '1.0',
     };
+    return this;
+  }
+}
+
+/**
+ * Fluent API for building JSONQL mutations (create, update, delete)
+ */
+export class JSONQLMutationBuilder {
+  private mutation: JSONQLMutation | null = null;
+
+  create(from: string, data: JSONQLInsertData): this {
+    this.mutation = { op: 'create', from, data } as JSONQLCreateMutation;
+    return this;
+  }
+
+  update(from: string, patch: JSONQLPatch): this {
+    this.mutation = { op: 'update', from, patch } as JSONQLUpdateMutation;
+    return this;
+  }
+
+  delete(from: string): this {
+    this.mutation = { op: 'delete', from } as JSONQLDeleteMutation;
+    return this;
+  }
+
+  where(where: JSONQLWhere): this {
+    if (!this.mutation) {
+      throw new Error('Mutation not initialized');
+    }
+    this.mutation.where = where;
+    return this;
+  }
+
+  fields(...fields: string[]): this {
+    if (!this.mutation) {
+      throw new Error('Mutation not initialized');
+    }
+    this.mutation.fields = fields;
+    return this;
+  }
+
+  limit(limit: number): this {
+    if (!this.mutation) {
+      throw new Error('Mutation not initialized');
+    }
+    this.mutation.limit = limit;
+    return this;
+  }
+
+  build(): JSONQLMutation {
+    if (!this.mutation) {
+      throw new Error('Mutation not initialized');
+    }
+    return { ...(this.mutation as JSONQLMutation) };
+  }
+
+  reset(): this {
+    this.mutation = null;
     return this;
   }
 }

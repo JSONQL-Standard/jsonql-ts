@@ -8,6 +8,12 @@ import {
   JSONQLFieldReference,
   JSONQLLogicalOperator,
   JSONQLFieldConditions,
+  JSONQLStatement,
+  JSONQLMutation,
+  JSONQLCreateMutation,
+  JSONQLUpdateMutation,
+  JSONQLDeleteMutation,
+  isMutation,
 } from '../types';
 
 /**
@@ -25,15 +31,20 @@ export class JSONQLValidator {
   /**
    * Validate a query against the schema
    */
-  validate(query: JSONQLQuery): ValidationResult {
+  validate(statement: JSONQLStatement): ValidationResult {
+    if (isMutation(statement)) {
+      return this.validateMutation(statement);
+    }
+
+    return this.validateQuery(statement);
+  }
+
+  private validateQuery(query: JSONQLQuery): ValidationResult {
     const errors: ValidationError[] = [];
 
     // Check global settings
     if (this.schema.settings) {
-      if (
-        this.schema.settings.allowAggregate === false &&
-        (query.aggregate || query.groupBy)
-      ) {
+      if (this.schema.settings.allowAggregate === false && (query.aggregate || query.groupBy)) {
         errors.push({
           path: 'aggregate',
           message: 'Aggregations are disabled in this schema',
@@ -66,11 +77,19 @@ export class JSONQLValidator {
     }
 
     const tableSchema = this.schema.tables[this.tableName];
+    const tableFields = tableSchema.fields as Record<string, any> | undefined;
+
+    if (!tableFields) {
+      return {
+        valid: errors.length === 0,
+        errors,
+      };
+    }
 
     // Validate fields
-    if (query.fields) {
+    if (query.fields && tableFields) {
       for (const field of query.fields) {
-        const fieldSchema = tableSchema.fields[field];
+        const fieldSchema = tableFields[field];
         if (!fieldSchema) {
           errors.push({
             path: `fields.${field}`,
@@ -269,6 +288,9 @@ export class JSONQLValidator {
 
     if (parts.length === 1) {
       // Direct field
+      if (!tableSchema.fields) {
+        return;
+      }
       const fieldSchema = tableSchema.fields[fieldPath];
       if (!fieldSchema) {
         errors.push({
@@ -318,9 +340,9 @@ export class JSONQLValidator {
       const relatedTableName = tableSchema.relations[relation].target;
       const relatedTable = this.schema.tables[relatedTableName];
       const nestedFieldName = nestedPath.join('.');
-      const relatedFieldSchema = relatedTable?.fields[nestedFieldName];
+      const relatedFieldSchema = relatedTable?.fields?.[nestedFieldName];
 
-      if (relatedTable && !relatedFieldSchema) {
+      if (relatedTable && relatedTable.fields && !relatedFieldSchema) {
         errors.push({
           path: `${context}.${fieldPath}`,
           message: `Field "${nestedFieldName}" not found in related table "${relatedTableName}"`,
@@ -423,6 +445,144 @@ export class JSONQLValidator {
     return (
       value && typeof value === 'object' && 'field' in value && typeof value.field === 'string'
     );
+  }
+
+  private validateMutation(mutation: JSONQLMutation): ValidationResult {
+    const errors: ValidationError[] = [];
+
+    if (!this.schema.tables[this.tableName]) {
+      errors.push({
+        path: 'table',
+        message: `Table "${this.tableName}" not found in schema`,
+        code: 'TABLE_NOT_FOUND',
+      });
+      return { valid: false, errors };
+    }
+
+    const tableSchema = this.schema.tables[this.tableName];
+    const tableFields = tableSchema.fields as Record<string, any> | undefined;
+
+    if (mutation.op === 'create') {
+      if (tableSchema.allowCreate === false) {
+        errors.push({
+          path: 'op',
+          message: `Create is not allowed on table "${this.tableName}"`,
+          code: 'CREATE_NOT_ALLOWED',
+        });
+      }
+
+      const rows = Array.isArray(mutation.data) ? mutation.data : [mutation.data];
+      rows.forEach((row, index) => {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) {
+          errors.push({
+            path: `data.${index}`,
+            message: 'Each data row must be an object',
+            code: 'INVALID_DATA_ROW',
+          });
+          return;
+        }
+
+        if (tableFields) {
+          for (const fieldName of Object.keys(row)) {
+            const fieldSchema = tableFields[fieldName];
+            if (!fieldSchema) {
+              errors.push({
+                path: `data.${index}.${fieldName}`,
+                message: `Field "${fieldName}" not found in table "${this.tableName}"`,
+                code: 'FIELD_NOT_FOUND',
+              });
+              continue;
+            }
+            if (fieldSchema.allowCreate === false) {
+              errors.push({
+                path: `data.${index}.${fieldName}`,
+                message: `Field "${fieldName}" is not allowed in create`,
+                code: 'FIELD_NOT_ALLOWED',
+              });
+            }
+          }
+
+          for (const [fieldName, fieldSchema] of Object.entries(tableFields)) {
+            if (fieldSchema.required && !(fieldName in row) && fieldSchema.nullable !== true) {
+              errors.push({
+                path: `data.${index}.${fieldName}`,
+                message: `Field "${fieldName}" is required`,
+                code: 'FIELD_REQUIRED',
+              });
+            }
+          }
+        }
+      });
+    }
+
+    if (mutation.op === 'update') {
+      if (tableSchema.allowUpdate === false) {
+        errors.push({
+          path: 'op',
+          message: `Update is not allowed on table "${this.tableName}"`,
+          code: 'UPDATE_NOT_ALLOWED',
+        });
+      }
+
+      if (!mutation.where) {
+        errors.push({
+          path: 'where',
+          message: 'Update requires a where clause',
+          code: 'MISSING_WHERE',
+        });
+      } else {
+        this.validateWhere(mutation.where, tableSchema, [], errors);
+      }
+
+      if (tableFields) {
+        for (const fieldName of Object.keys(mutation.patch)) {
+          const fieldSchema = tableFields[fieldName];
+          if (!fieldSchema) {
+            errors.push({
+              path: `patch.${fieldName}`,
+              message: `Field "${fieldName}" not found in table "${this.tableName}"`,
+              code: 'FIELD_NOT_FOUND',
+            });
+            continue;
+          }
+          if (fieldSchema.allowUpdate === false) {
+            errors.push({
+              path: `patch.${fieldName}`,
+              message: `Field "${fieldName}" is not allowed in update`,
+              code: 'FIELD_NOT_ALLOWED',
+            });
+          }
+        }
+      }
+    }
+
+    if (mutation.op === 'delete') {
+      if (tableSchema.allowDelete === false) {
+        errors.push({
+          path: 'op',
+          message: `Delete is not allowed on table "${this.tableName}"`,
+          code: 'DELETE_NOT_ALLOWED',
+        });
+      }
+
+      if (!mutation.where) {
+        errors.push({
+          path: 'where',
+          message: 'Delete requires a where clause',
+          code: 'MISSING_WHERE',
+        });
+      } else {
+        this.validateWhere(mutation.where, tableSchema, [], errors);
+      }
+    }
+
+    if (mutation.fields) {
+      for (const field of mutation.fields) {
+        this.validateFieldPath(field, tableSchema, [], errors, 'fields', 'select');
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
   }
 
   /**

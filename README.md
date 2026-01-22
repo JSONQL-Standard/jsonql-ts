@@ -106,6 +106,23 @@ async function getUsers(jsonqlQuery) {
 }
 ```
 
+### 4. Mutations (POC)
+
+```typescript
+import { SQLTranspiler } from '@jsonql-standard/jsonql-ts';
+
+const transpiler = new SQLTranspiler('postgres');
+
+const createUser = {
+  from: 'users',
+  data: { email: 'a@b.com', name: 'Alice' },
+  fields: ['id', 'email'],
+};
+
+const { sql, parameters } = transpiler.transpile(createUser, 'users');
+// INSERT INTO "users" ("email", "name") VALUES ($1, $2) RETURNING "id", "email"
+```
+
 ## Examples
 
 Check out the `examples/` directory for complete reference implementations:
