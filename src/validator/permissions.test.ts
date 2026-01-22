@@ -22,17 +22,17 @@ const schema: JSONQLSchema = {
       },
     },
     posts: {
-    fields: {
-      id: { type: 'number' },
-      title: { type: 'string' },
+      fields: {
+        id: { type: 'number' },
+        title: { type: 'string' },
+      },
+    },
+    secrets: {
+      fields: {
+        key: { type: 'string' },
+      },
     },
   },
-  secrets: {
-    fields: {
-      key: { type: 'string' },
-    },
-  },
-  }
 };
 
 describe('JSONQLValidator Permissions', () => {

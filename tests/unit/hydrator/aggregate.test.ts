@@ -7,15 +7,15 @@ describe('ResultHydrator - Aggregates', () => {
   const schema: JSONQLSchema = {
     tables: {
       users: {
-      fields: {},
-      relations: {
-        posts: { type: 'hasMany', target: 'posts', foreignKey: 'user_id' },
+        fields: {},
+        relations: {
+          posts: { type: 'hasMany', target: 'posts', foreignKey: 'user_id' },
+        },
       },
-    },
-    posts: {
-      fields: {},
-      relations: {},
-    },
+      posts: {
+        fields: {},
+        relations: {},
+      },
     },
   };
 

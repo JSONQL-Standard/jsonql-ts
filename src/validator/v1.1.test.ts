@@ -15,17 +15,17 @@ const mockSchema: JSONQLSchema = {
       },
     },
     posts: {
-    fields: {
-      id: { type: 'number' },
-      title: { type: 'string' },
-      published: { type: 'boolean' },
-      authorId: { type: 'number' },
-    },
-    relations: {
-      author: { target: 'users', type: 'belongsTo' },
+      fields: {
+        id: { type: 'number' },
+        title: { type: 'string' },
+        published: { type: 'boolean' },
+        authorId: { type: 'number' },
+      },
+      relations: {
+        author: { target: 'users', type: 'belongsTo' },
+      },
     },
   },
-  }
 };
 
 describe('JSONQLValidator v1.1 Features', () => {

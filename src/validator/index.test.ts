@@ -29,28 +29,28 @@ describe('JSONQLValidator', () => {
           },
         },
         posts: {
-        fields: {
-          id: { type: 'number', required: true },
-          title: { type: 'string', required: true },
-          content: { type: 'string' },
-          user_id: { type: 'number' },
-          created_at: { type: 'date' },
+          fields: {
+            id: { type: 'number', required: true },
+            title: { type: 'string', required: true },
+            content: { type: 'string' },
+            user_id: { type: 'number' },
+            created_at: { type: 'date' },
+          },
+          relations: {
+            author: {
+              type: 'belongsTo',
+              target: 'users',
+            },
+          },
         },
-        relations: {
-          author: {
-            type: 'belongsTo',
-            target: 'users',
+        profiles: {
+          fields: {
+            id: { type: 'number', required: true },
+            bio: { type: 'string' },
+            user_id: { type: 'number' },
           },
         },
       },
-      profiles: {
-        fields: {
-          id: { type: 'number', required: true },
-          bio: { type: 'string' },
-          user_id: { type: 'number' },
-        },
-      },
-      }
     };
 
     validator = new JSONQLValidator(schema, 'users');

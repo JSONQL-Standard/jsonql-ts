@@ -7,16 +7,16 @@ describe('JSONQL Main Class', () => {
     schema = {
       tables: {
         users: {
-        fields: {
-          id: { type: 'number', required: true },
-          name: { type: 'string', required: true },
-          email: { type: 'string', required: true },
-          age: { type: 'number' },
+          fields: {
+            id: { type: 'number', required: true },
+            name: { type: 'string', required: true },
+            email: { type: 'string', required: true },
+            age: { type: 'number' },
+          },
+          relations: {
+            posts: { type: 'hasMany', target: 'posts' },
+          },
         },
-        relations: {
-          posts: { type: 'hasMany', target: 'posts' },
-        },
-      },
       },
     };
   });

@@ -16,40 +16,40 @@ describe('JSONQL Feature Tests (Pagination & Aggregates)', () => {
   const schema: JSONQLSchema = {
     tables: {
       users: {
-      fields: {
-        id: { type: 'number' },
-        name: { type: 'string' },
-        email: { type: 'string' },
-        status: { type: 'string' },
-        age: { type: 'number' },
-        deleted_at: { type: 'string', nullable: true },
+        fields: {
+          id: { type: 'number' },
+          name: { type: 'string' },
+          email: { type: 'string' },
+          status: { type: 'string' },
+          age: { type: 'number' },
+          deleted_at: { type: 'string', nullable: true },
+        },
+        relations: {
+          posts: { type: 'hasMany', target: 'posts', foreignKey: 'user_id' },
+        },
       },
-      relations: {
-        posts: { type: 'hasMany', target: 'posts', foreignKey: 'user_id' },
+      posts: {
+        fields: {
+          id: { type: 'number' },
+          user_id: { type: 'number' },
+          title: { type: 'string' },
+          views: { type: 'number' },
+          published: { type: 'boolean' },
+        },
+        relations: {
+          comments: { type: 'hasMany', target: 'comments', foreignKey: 'post_id' },
+        },
       },
-    },
-    posts: {
-      fields: {
-        id: { type: 'number' },
-        user_id: { type: 'number' },
-        title: { type: 'string' },
-        views: { type: 'number' },
-        published: { type: 'boolean' },
+      comments: {
+        fields: {
+          id: { type: 'number' },
+          post_id: { type: 'number' },
+          user_id: { type: 'number' },
+          content: { type: 'string' },
+          approved: { type: 'boolean' },
+        },
+        relations: {},
       },
-      relations: {
-        comments: { type: 'hasMany', target: 'comments', foreignKey: 'post_id' },
-      },
-    },
-    comments: {
-      fields: {
-        id: { type: 'number' },
-        post_id: { type: 'number' },
-        user_id: { type: 'number' },
-        content: { type: 'string' },
-        approved: { type: 'boolean' },
-      },
-      relations: {},
-    },
     },
   };
 

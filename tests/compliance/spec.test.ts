@@ -24,7 +24,11 @@ describe('JSONQL Compliance Tests', () => {
       describe(`Standard: ${file}`, () => {
         testCases.forEach((testCase: any) => {
           it(`${testCase.id}: ${testCase.description}`, () => {
-            const schema = testCase.schema ? (testCase.schema.tables ? testCase.schema : { tables: { default: testCase.schema } }) : undefined;
+            const schema = testCase.schema
+              ? testCase.schema.tables
+                ? testCase.schema
+                : { tables: { default: testCase.schema } }
+              : undefined;
             const jsonql = new JSONQL(schema, 'default'); // Pass schema if available
 
             if (testCase.valid !== false) {
@@ -134,11 +138,11 @@ describe('JSONQL Compliance Tests', () => {
               // Use test-specific schema or shared schema
               let schema = testCase.schema || sharedSchema;
               if (schema && !schema.tables) {
-                 if (schema.fields) {
-                    schema = { tables: { [testCase.tableName || 'default']: schema } };
-                 } else {
-                    schema = { tables: schema };
-                 }
+                if (schema.fields) {
+                  schema = { tables: { [testCase.tableName || 'default']: schema } };
+                } else {
+                  schema = { tables: schema };
+                }
               }
               const jsonql = new JSONQL(schema, testCase.tableName);
 

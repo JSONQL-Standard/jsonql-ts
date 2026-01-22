@@ -38,10 +38,10 @@ describe('Schema Manager & Introspection', () => {
     const patch: JSONQLSchema = {
       tables: {
         users: {
-        fields: {
-          email: { type: 'string', allowSelect: false }, // Override
+          fields: {
+            email: { type: 'string', allowSelect: false }, // Override
+          },
         },
-      },
       },
     };
     fs.writeFileSync(tempSchemaPath, JSON.stringify(patch));
@@ -67,10 +67,10 @@ describe('Schema Manager & Introspection', () => {
       runtimeSchema: {
         tables: {
           users: {
-          fields: {
-            status: { type: 'string', allowSelect: false },
+            fields: {
+              status: { type: 'string', allowSelect: false },
+            },
           },
-        },
         },
       },
     });
@@ -91,10 +91,10 @@ describe('Schema Manager & Introspection', () => {
           runtimeSchema: {
             tables: {
               users: {
-              fields: {
-                dynamic: { type: 'boolean' },
+                fields: {
+                  dynamic: { type: 'boolean' },
+                },
               },
-            },
             },
           },
         };

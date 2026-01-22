@@ -8,13 +8,15 @@ describe('JSONQLParser', () => {
     parser = new JSONQLParser();
   });
 
+  const parseQuery = (input: any) => parser.parse(input) as JSONQLQuery;
+
   describe('parse', () => {
     it('should parse a minimal query with version', () => {
       const input = {
         version: '1.0',
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.version).toBe('1.0');
     });
@@ -25,7 +27,7 @@ describe('JSONQLParser', () => {
         fields: ['id', 'name'],
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.version).toBe('1.0');
       expect(result.fields).toEqual(['id', 'name']);
@@ -37,7 +39,7 @@ describe('JSONQLParser', () => {
         fields: ['id', 'name'],
       });
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.version).toBe('1.0');
       expect(result.fields).toEqual(['id', 'name']);
@@ -53,7 +55,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.where).toEqual({
         age: {
@@ -71,7 +73,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.where).toHaveProperty('age');
       expect(result.where).toHaveProperty('status');
@@ -85,7 +87,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect((result.where as any).and).toHaveLength(2);
     });
@@ -98,7 +100,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect((result.where as any).or).toHaveLength(2);
     });
@@ -113,7 +115,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect((result.where as any).not).toBeDefined();
     });
@@ -124,7 +126,7 @@ describe('JSONQLParser', () => {
         sort: 'name',
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.sort).toBe('name');
     });
@@ -135,7 +137,7 @@ describe('JSONQLParser', () => {
         sort: ['name', '-created_at'],
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.sort).toEqual(['name', '-created_at']);
     });
@@ -147,7 +149,7 @@ describe('JSONQLParser', () => {
         skip: 20,
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.limit).toBe(10);
       expect(result.skip).toBe(20);
@@ -159,7 +161,7 @@ describe('JSONQLParser', () => {
         include: ['author', 'tags'],
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.include).toEqual(['author', 'tags']);
     });
@@ -182,7 +184,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect(result.where).toBeDefined();
     });
@@ -200,7 +202,7 @@ describe('JSONQLParser', () => {
         },
       };
 
-      const result = parser.parse(input);
+      const result = parseQuery(input);
 
       expect((result.where as any).and).toHaveLength(2);
       expect((result.where as any).and[1].or).toHaveLength(2);
@@ -327,7 +329,7 @@ describe('JSONQLParser', () => {
     });
 
     it('should parse query with groupBy', () => {
-      const query = parser.parse({
+      const query = parseQuery({
         version: '1.1',
         groupBy: ['role'],
       });
@@ -335,7 +337,7 @@ describe('JSONQLParser', () => {
     });
 
     it('should parse query with distinct', () => {
-      const query = parser.parse({
+      const query = parseQuery({
         version: '1.1',
         distinct: true,
       });
@@ -343,7 +345,7 @@ describe('JSONQLParser', () => {
     });
 
     it('should parse query with aggregate', () => {
-      const query = parser.parse({
+      const query = parseQuery({
         version: '1.1',
         aggregate: {
           count: { count: 'id' },
@@ -353,7 +355,7 @@ describe('JSONQLParser', () => {
     });
 
     it('should parse query with object include (sub-query)', () => {
-      const query = parser.parse({
+      const query = parseQuery({
         version: '1.1',
         include: {
           posts: {
@@ -373,7 +375,7 @@ describe('JSONQLParser', () => {
     });
 
     it('should allow missing version (defaults to 1.1)', () => {
-      const query = parser.parse({
+      const query = parseQuery({
         fields: ['id'],
       });
       expect(query.fields).toEqual(['id']);
