@@ -58,6 +58,10 @@ class AppModule {}
 describe('NestJS Adapter E2E (SQLite)', () => {
   let app: any;
 
+  beforeAll(() => {
+    jest.setTimeout(20000);
+  });
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],

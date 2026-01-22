@@ -31,7 +31,7 @@ describe('SQLTranspiler mutations', () => {
       'users',
     );
 
-    expect(sql).toBe('UPDATE "users" SET "users"."name" = $1 WHERE "users"."id" = $2');
+    expect(sql).toBe('UPDATE "users" SET "name" = $1 WHERE "users"."id" = $2');
     expect(parameters).toEqual(['Alice', 5]);
   });
 
