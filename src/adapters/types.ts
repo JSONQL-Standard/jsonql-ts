@@ -4,7 +4,9 @@ import { Logger } from '../logger';
 
 export interface AdapterOptions<Context = any> {
   schema?: JSONQLSchema;
-  schemaResolver?: (context: Context) => Promise<JSONQLSchema | undefined> | JSONQLSchema | undefined;
+  schemaResolver?: (
+    context: Context,
+  ) => Promise<JSONQLSchema | undefined> | JSONQLSchema | undefined;
   driver?: DatabaseDriver;
   execute?: (sql: string, params: any[]) => Promise<any[]>;
   dialect?: 'sqlite' | 'postgres' | 'mysql';
