@@ -1,6 +1,7 @@
 export * from './core';
 export * from './core';
 export * from './types';
+export * from './errors';
 export * from './parser';
 export * from './validator';
 export * from './transpiler';
@@ -16,6 +17,7 @@ export * from './driver';
 
 export * from './adapters/types';
 export * from './adapters/utils';
+export * from './adapters/base';
 export * from './adapters/express';
 export * from './adapters/fastify';
 export * from './adapters/nestjs';

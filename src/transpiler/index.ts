@@ -118,7 +118,8 @@ export class SQLTranspiler {
     }
 
     // 2. FROM clause
-    let sql = `SELECT ${selectParts.join(', ')} FROM ${quotedTableName}`;
+    const distinctKeyword = query.distinct ? 'DISTINCT ' : '';
+    let sql = `SELECT ${distinctKeyword}${selectParts.join(', ')} FROM ${quotedTableName}`;
     let joins: string[] = [];
 
     // Handle Includes (Joins)
@@ -138,7 +139,7 @@ export class SQLTranspiler {
       );
 
       // Rebuild SELECT with included fields
-      sql = `SELECT ${selectParts.join(', ')} FROM ${quotedTableName}`;
+      sql = `SELECT ${distinctKeyword}${selectParts.join(', ')} FROM ${quotedTableName}`;
     }
 
     if (joins.length > 0) {
@@ -167,14 +168,10 @@ export class SQLTranspiler {
 
     // 4. SORT clause
     if (query.sort) {
-      let sortStr = '';
-      if (typeof query.sort === 'string') {
-        sortStr = query.sort;
-      } else if (Array.isArray(query.sort)) {
-        sortStr = query.sort[0];
-      }
+      const sortItems: string[] = typeof query.sort === 'string' ? [query.sort] : query.sort;
+      const sortParts: string[] = [];
 
-      if (sortStr) {
+      for (const sortStr of sortItems) {
         let field = sortStr;
         let desc = false;
         if (field.startsWith('-')) {
@@ -186,7 +183,11 @@ export class SQLTranspiler {
           throw new Error(`Invalid sort field: ${field}`);
         }
 
-        sql += ` ORDER BY ${quotedTableName}.${this.dialect.quoteIdentifier(field)} ${desc ? 'DESC' : 'ASC'}`;
+        sortParts.push(`${quotedTableName}.${this.dialect.quoteIdentifier(field)} ${desc ? 'DESC' : 'ASC'}`);
+      }
+
+      if (sortParts.length > 0) {
+        sql += ` ORDER BY ${sortParts.join(', ')}`;
       }
     }
 

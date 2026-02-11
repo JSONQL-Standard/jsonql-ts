@@ -15,6 +15,7 @@ import {
   JSONQLDeleteMutation,
   isMutation,
 } from '../types';
+import { JsonQLValidationError } from '../errors';
 
 /**
  * Validates JSONQL v1.0 queries against schemas
@@ -37,6 +38,17 @@ export class JSONQLValidator {
     }
 
     return this.validateQuery(statement);
+  }
+
+  /**
+   * Validate and throw on the first error (fail-fast).
+   * @throws {JsonQLValidationError} if validation fails
+   */
+  validateOrThrow(statement: JSONQLStatement): void {
+    const result = this.validate(statement);
+    if (!result.valid && result.errors.length > 0) {
+      throw new JsonQLValidationError(result.errors[0].message, result.errors);
+    }
   }
 
   private validateQuery(query: JSONQLQuery): ValidationResult {
