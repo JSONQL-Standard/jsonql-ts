@@ -1,4 +1,4 @@
-export type JSONQLDialect = 'sqlite' | 'postgres' | 'mysql';
+export type JSONQLDialect = 'sqlite' | 'postgres' | 'mysql' | 'mssql';
 
 export interface DatabaseDriver {
   dialect: JSONQLDialect;

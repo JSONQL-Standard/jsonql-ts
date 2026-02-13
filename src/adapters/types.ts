@@ -9,7 +9,7 @@ export interface AdapterOptions<Context = any> {
   ) => Promise<JSONQLSchema | undefined> | JSONQLSchema | undefined;
   driver?: DatabaseDriver;
   execute?: (sql: string, params: any[]) => Promise<any[]>;
-  dialect?: 'sqlite' | 'postgres' | 'mysql';
+  dialect?: 'sqlite' | 'postgres' | 'mysql' | 'mssql';
 
   /**
    * Enable verbose logging for debugging.

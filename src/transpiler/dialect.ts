@@ -33,3 +33,13 @@ export class MySQLDialect implements SQLDialect {
     return `\`${identifier}\``;
   }
 }
+
+export class MSSQLDialect implements SQLDialect {
+  name = 'mssql';
+  getPlaceholder(index: number): string {
+    return `@p${index + 1}`;
+  }
+  quoteIdentifier(identifier: string): string {
+    return `[${identifier}]`;
+  }
+}

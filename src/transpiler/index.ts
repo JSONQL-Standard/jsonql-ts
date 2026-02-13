@@ -16,7 +16,7 @@ export interface TranspilationResult {
 export class SQLTranspiler {
   private dialect: SQLDialect;
 
-  constructor(dialect?: SQLDialect | 'sqlite' | 'postgres' | 'mysql') {
+  constructor(dialect?: SQLDialect | 'sqlite' | 'postgres' | 'mysql' | 'mssql') {
     if (!dialect) {
       this.dialect = new SQLiteDialect();
     } else if (typeof dialect === 'string') {
@@ -31,6 +31,10 @@ export class SQLTranspiler {
         case 'mysql':
           const { MySQLDialect } = require('./dialect');
           this.dialect = new MySQLDialect();
+          break;
+        case 'mssql':
+          const { MSSQLDialect } = require('./dialect');
+          this.dialect = new MSSQLDialect();
           break;
         case 'sqlite':
         default:
@@ -192,11 +196,27 @@ export class SQLTranspiler {
     }
 
     // 5. LIMIT / SKIP
-    if (query.limit !== undefined) {
-      sql += ` LIMIT ${query.limit}`;
-    }
-    if (query.skip !== undefined) {
-      sql += ` OFFSET ${query.skip}`;
+    if (this.dialect.name === 'mssql') {
+      if (query.limit !== undefined) {
+        // MSSQL requires ORDER BY for OFFSET/FETCH; add default if missing
+        if (!query.sort) {
+          sql += ` ORDER BY (SELECT NULL)`;
+        }
+        const offset = query.skip ?? 0;
+        sql += ` OFFSET ${offset} ROWS FETCH NEXT ${query.limit} ROWS ONLY`;
+      } else if (query.skip !== undefined) {
+        if (!query.sort) {
+          sql += ` ORDER BY (SELECT NULL)`;
+        }
+        sql += ` OFFSET ${query.skip} ROWS`;
+      }
+    } else {
+      if (query.limit !== undefined) {
+        sql += ` LIMIT ${query.limit}`;
+      }
+      if (query.skip !== undefined) {
+        sql += ` OFFSET ${query.skip}`;
+      }
     }
 
     return { sql, parameters };
@@ -636,3 +656,5 @@ export class SQLTranspiler {
     return /^[a-zA-Z0-9_]+$/.test(id);
   }
 }
+
+export { MongoTranspiler, MongoResult } from './mongo';
