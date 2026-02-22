@@ -1,5 +1,4 @@
 export * from './core';
-export * from './core';
 export * from './types';
 export * from './errors';
 export * from './parser';

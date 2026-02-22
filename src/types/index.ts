@@ -114,6 +114,7 @@ export interface JSONQLTableSchema {
   relations?: {
     [relationName: string]: JSONQLRelation;
   };
+  primaryKey?: string; // Defaults to 'id' if not set
   allowCreate?: boolean;
   allowUpdate?: boolean;
   allowDelete?: boolean;

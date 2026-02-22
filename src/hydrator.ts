@@ -29,7 +29,7 @@ export class ResultHydrator {
     // 3. Tree Hydration (Grouping)
     // If rows don't have the PK, we can't group safely. Return flat list.
     // This handles aggregates and queries without ID.
-    const pk = 'id'; // TODO: Configurable
+    const pk = schema.tables[rootTable]?.primaryKey || 'id';
     if (hydratedRows[0][pk] === undefined) {
       return hydratedRows;
     }
@@ -68,7 +68,7 @@ export class ResultHydrator {
   }
 
   private groupResults(rows: any[], schema: JSONQLSchema, tableName: string): any[] {
-    const pk = 'id'; // TODO: Configurable PK
+    const pk = schema.tables[tableName]?.primaryKey || 'id';
     const map = new Map<string, any>();
     const order: any[] = [];
 
@@ -131,13 +131,15 @@ export class ResultHydrator {
       }
 
       if (relDef.type === 'hasMany') {
-        // If ID is explicitly null, it's a failed join (empty relation)
-        if (sourceChild.id === null) {
+        const childPk = schema.tables[relDef.target]?.primaryKey || 'id';
+
+        // If PK is explicitly null, it's a failed join (empty relation)
+        if (sourceChild[childPk] === null) {
           continue;
         }
 
-        // If ID is undefined (not selected), treat as Aggregate/Single Object
-        if (sourceChild.id === undefined) {
+        // If PK is undefined (not selected), treat as Aggregate/Single Object
+        if (sourceChild[childPk] === undefined) {
           if (Object.keys(sourceChild).length > 0) {
             // If target is currently an empty array (default init), replace with object
             if (Array.isArray(target[relName]) && target[relName].length === 0) {
@@ -153,8 +155,8 @@ export class ResultHydrator {
         // Target is array
         if (!Array.isArray(target[relName])) target[relName] = [];
 
-        const childId = sourceChild.id;
-        let existing = target[relName].find((c: any) => c.id === childId);
+        const childId = sourceChild[childPk];
+        let existing = target[relName].find((c: any) => c[childPk] === childId);
 
         if (!existing) {
           existing = this.initObject(sourceChild, schema, relDef.target);

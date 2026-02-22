@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { BaseHandler } from './base';
 import { AdapterOptions, FrameworkAdapter } from './types';
-import { DatabaseDriver } from '../drivers/types';
+import { DatabaseDriver } from '../driver';
 
 export interface JsonqlExpressOptions extends AdapterOptions<Request> {
   driver?: DatabaseDriver;

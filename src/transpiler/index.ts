@@ -70,6 +70,11 @@ export class SQLTranspiler {
     // Handle fields
     if (query.fields && query.fields.length > 0) {
       for (const field of query.fields) {
+        // Handle wildcard * for all fields
+        if (field === '*') {
+          selectParts.push(`${quotedTableName}.*`);
+          continue;
+        }
         if (!this.isValidIdentifier(field)) {
           throw new Error(`Invalid field name: ${field}`);
         }
@@ -196,26 +201,16 @@ export class SQLTranspiler {
     }
 
     // 5. LIMIT / SKIP
-    if (this.dialect.name === 'mssql') {
-      if (query.limit !== undefined) {
-        // MSSQL requires ORDER BY for OFFSET/FETCH; add default if missing
-        if (!query.sort) {
-          sql += ` ORDER BY (SELECT NULL)`;
-        }
-        const offset = query.skip ?? 0;
-        sql += ` OFFSET ${offset} ROWS FETCH NEXT ${query.limit} ROWS ONLY`;
-      } else if (query.skip !== undefined) {
-        if (!query.sort) {
-          sql += ` ORDER BY (SELECT NULL)`;
-        }
-        sql += ` OFFSET ${query.skip} ROWS`;
+    if (query.limit !== undefined && query.limit !== null || query.skip !== undefined) {
+      const limit = query.limit ?? 0;
+      const offset = query.skip ?? 0;
+      // MSSQL requires ORDER BY for OFFSET/FETCH
+      if (this.dialect.name === 'mssql' && !query.sort && (limit > 0 || offset > 0)) {
+        sql += ` ORDER BY (SELECT NULL)`;
       }
-    } else {
-      if (query.limit !== undefined) {
-        sql += ` LIMIT ${query.limit}`;
-      }
-      if (query.skip !== undefined) {
-        sql += ` OFFSET ${query.skip}`;
+      const limitClause = this.dialect.getLimitOffset(limit, offset);
+      if (limitClause) {
+        sql += ` ${limitClause}`;
       }
     }
 
@@ -233,7 +228,7 @@ export class SQLTranspiler {
 
     const quotedTableName = this.dialect.quoteIdentifier(resolvedTable);
     const parameters: any[] = [];
-    const supportsReturning = this.dialect.name === 'postgres';
+    const supportsReturning = this.dialect.supportsReturning();
 
     const addParam = (value: any) => {
       const placeholder = this.dialect.getPlaceholder(parameters.length);
@@ -596,6 +591,8 @@ export class SQLTranspiler {
         if ('eq' in condition) {
           if (condition.eq === null) {
             conditions.push(`${quotedField} IS NULL`);
+          } else if (this.isFieldReference(condition.eq)) {
+            conditions.push(`${quotedField} = ${this.quoteFieldReference(condition.eq.field)}`);
           } else {
             conditions.push(`${quotedField} = ${this.dialect.getPlaceholder(parameters.length)}`);
             parameters.push(condition.eq);
@@ -605,26 +602,44 @@ export class SQLTranspiler {
           const val = condition.ne !== undefined ? condition.ne : (condition as any).neq;
           if (val === null) {
             conditions.push(`${quotedField} IS NOT NULL`);
+          } else if (this.isFieldReference(val)) {
+            conditions.push(`${quotedField} != ${this.quoteFieldReference(val.field)}`);
           } else {
             conditions.push(`${quotedField} != ${this.dialect.getPlaceholder(parameters.length)}`);
             parameters.push(val);
           }
         }
         if ('gt' in condition) {
-          conditions.push(`${quotedField} > ${this.dialect.getPlaceholder(parameters.length)}`);
-          parameters.push(condition.gt);
+          if (this.isFieldReference(condition.gt)) {
+            conditions.push(`${quotedField} > ${this.quoteFieldReference(condition.gt.field)}`);
+          } else {
+            conditions.push(`${quotedField} > ${this.dialect.getPlaceholder(parameters.length)}`);
+            parameters.push(condition.gt);
+          }
         }
         if ('gte' in condition) {
-          conditions.push(`${quotedField} >= ${this.dialect.getPlaceholder(parameters.length)}`);
-          parameters.push(condition.gte);
+          if (this.isFieldReference(condition.gte)) {
+            conditions.push(`${quotedField} >= ${this.quoteFieldReference(condition.gte.field)}`);
+          } else {
+            conditions.push(`${quotedField} >= ${this.dialect.getPlaceholder(parameters.length)}`);
+            parameters.push(condition.gte);
+          }
         }
         if ('lt' in condition) {
-          conditions.push(`${quotedField} < ${this.dialect.getPlaceholder(parameters.length)}`);
-          parameters.push(condition.lt);
+          if (this.isFieldReference(condition.lt)) {
+            conditions.push(`${quotedField} < ${this.quoteFieldReference(condition.lt.field)}`);
+          } else {
+            conditions.push(`${quotedField} < ${this.dialect.getPlaceholder(parameters.length)}`);
+            parameters.push(condition.lt);
+          }
         }
         if ('lte' in condition) {
-          conditions.push(`${quotedField} <= ${this.dialect.getPlaceholder(parameters.length)}`);
-          parameters.push(condition.lte);
+          if (this.isFieldReference(condition.lte)) {
+            conditions.push(`${quotedField} <= ${this.quoteFieldReference(condition.lte.field)}`);
+          } else {
+            conditions.push(`${quotedField} <= ${this.dialect.getPlaceholder(parameters.length)}`);
+            parameters.push(condition.lte);
+          }
         }
         if ('in' in condition && Array.isArray(condition.in)) {
           if (condition.in.length === 0) {
@@ -637,6 +652,31 @@ export class SQLTranspiler {
             }
             conditions.push(`${quotedField} IN (${placeholdersArr.join(', ')})`);
           }
+        }
+        if ('nin' in condition && Array.isArray((condition as any).nin)) {
+          const ninValues = (condition as any).nin;
+          if (ninValues.length === 0) {
+            conditions.push('1=1');
+          } else {
+            const placeholdersArr: string[] = [];
+            for (const v of ninValues) {
+              placeholdersArr.push(this.dialect.getPlaceholder(parameters.length));
+              parameters.push(v);
+            }
+            conditions.push(`${quotedField} NOT IN (${placeholdersArr.join(', ')})`);
+          }
+        }
+        if ('contains' in condition) {
+          conditions.push(`LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`);
+          parameters.push(`%${(condition as any).contains}%`);
+        }
+        if ('starts' in condition) {
+          conditions.push(`LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`);
+          parameters.push(`${(condition as any).starts}%`);
+        }
+        if ('ends' in condition) {
+          conditions.push(`LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`);
+          parameters.push(`%${(condition as any).ends}`);
         }
       } else {
         // Implicit eq
@@ -653,7 +693,26 @@ export class SQLTranspiler {
   }
 
   private isValidIdentifier(id: string): boolean {
+    // Allow * as a wildcard for all fields
+    if (id === '*') return true;
     return /^[a-zA-Z0-9_]+$/.test(id);
+  }
+
+  private isFieldReference(value: unknown): value is { field: string } {
+    return (
+      !!value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      typeof (value as any).field === 'string' &&
+      (value as any).field.length > 0
+    );
+  }
+
+  private quoteFieldReference(fieldRef: string): string {
+    return fieldRef
+      .split('.')
+      .map((part) => this.dialect.quoteIdentifier(part))
+      .join('.');
   }
 }
 

@@ -84,11 +84,30 @@ export class JSONQLParser {
       'groupBy',
       'distinct',
       'aggregate',
+      // CRUD operations as top-level properties
+      'create',
+      'update',
+      'delete',
+      'upsert',
     ]);
     for (const key of Object.keys(obj)) {
       if (!allowedProperties.has(key)) {
         throw new Error(`Unknown property "${key}" in query`);
       }
+    }
+
+    // Handle CRUD operations as top-level properties
+    if (obj.create !== undefined) {
+      return this.parseCreateMutation(obj, isSubQuery);
+    }
+    if (obj.update !== undefined) {
+      return this.parseUpdateMutation(obj, isSubQuery);
+    }
+    if (obj.delete !== undefined) {
+      return this.parseDeleteMutation(obj, isSubQuery);
+    }
+    if (obj.upsert !== undefined) {
+      return this.parseUpsertMutation(obj, isSubQuery);
     }
 
     const query: JSONQLQuery = {};
@@ -281,6 +300,11 @@ export class JSONQLParser {
       'data',
       'patch',
       'fields',
+      // Shorthand CRUD properties
+      'create',
+      'update',
+      'delete',
+      'upsert',
     ]);
     for (const key of Object.keys(obj)) {
       if (!allowedProperties.has(key)) {
@@ -347,38 +371,42 @@ export class JSONQLParser {
       common.fields = obj.fields;
     }
 
-    if (obj.op === 'create' || obj.data !== undefined) {
-      if (obj.data === undefined) {
+    if (obj.op === 'create' || obj.data !== undefined || obj.create !== undefined) {
+      // Handle shorthand create property
+      const data = obj.data || obj.create;
+      if (data === undefined) {
         throw new Error('create mutation requires data');
       }
       if (
-        typeof obj.data !== 'object' ||
-        obj.data === null ||
-        (Array.isArray(obj.data) && obj.data.length === 0)
+        typeof data !== 'object' ||
+        data === null ||
+        (Array.isArray(data) && data.length === 0)
       ) {
         throw new Error('data must be a non-empty object or array of objects');
       }
-      if (Array.isArray(obj.data)) {
-        for (const row of obj.data) {
+      if (Array.isArray(data)) {
+        for (const row of data) {
           if (!row || typeof row !== 'object' || Array.isArray(row)) {
             throw new Error('Each data row must be an object');
           }
         }
-      } else if (typeof obj.data !== 'object') {
+      } else if (typeof data !== 'object') {
         throw new Error('data must be an object or array of objects');
       }
       return {
         op: 'create',
         ...common,
-        data: obj.data,
+        data,
       } as JSONQLMutation;
     }
 
-    if (obj.op === 'update' || obj.patch !== undefined) {
-      if (obj.patch === undefined) {
+    if (obj.op === 'update' || obj.patch !== undefined || obj.update !== undefined) {
+      // Handle shorthand update property
+      const patch = obj.patch || obj.update;
+      if (patch === undefined) {
         throw new Error('update mutation requires patch');
       }
-      if (!obj.patch || typeof obj.patch !== 'object' || Array.isArray(obj.patch)) {
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
         throw new Error('patch must be an object');
       }
       if (!obj.where) {
@@ -387,12 +415,13 @@ export class JSONQLParser {
       return {
         op: 'update',
         ...common,
-        patch: obj.patch,
+        patch,
       } as JSONQLMutation;
     }
 
-    if (obj.op === 'delete') {
-      if (!obj.where) {
+    if (obj.op === 'delete' || obj.delete !== undefined) {
+      // Handle shorthand delete property
+      if (!obj.where && !obj.delete) {
         throw new Error('delete mutation requires where clause');
       }
       return {
@@ -402,6 +431,85 @@ export class JSONQLParser {
     }
 
     throw new Error('Mutation op is required for delete operations');
+  }
+
+  // Parse CRUD operations as top-level properties (shorthand syntax)
+  // Note: The adapter will inject 'from' from the URL path if not provided
+  private parseCreateMutation(obj: any, isSubQuery: boolean): JSONQLMutation {
+    const from = obj.from; // May be injected by adapter later
+    const data = obj.create;
+    if (data === undefined) {
+      throw new Error('create requires data');
+    }
+    return {
+      op: 'create',
+      from,
+      data,
+      version: obj.version,
+    } as JSONQLMutation;
+  }
+
+  private parseUpdateMutation(obj: any, isSubQuery: boolean): JSONQLMutation {
+    const from = obj.from; // May be injected by adapter later
+    const patch = obj.update;
+    if (patch === undefined) {
+      throw new Error('update requires patch data');
+    }
+    const where = obj.where ? this.parseWhere(obj.where, 0) : undefined;
+    return {
+      op: 'update',
+      from,
+      patch,
+      where,
+      version: obj.version,
+    } as JSONQLMutation;
+  }
+
+  private parseDeleteMutation(obj: any, isSubQuery: boolean): JSONQLMutation {
+    const from = obj.from; // May be injected by adapter later
+    const where = obj.where ? this.parseWhere(obj.where, 0) : undefined;
+    return {
+      op: 'delete',
+      from,
+      where,
+      version: obj.version,
+    } as JSONQLMutation;
+  }
+
+  private parseUpsertMutation(obj: any, isSubQuery: boolean): JSONQLMutation {
+    const from = obj.from; // May be injected by adapter later
+    const data = obj.upsert;
+    if (data === undefined) {
+      throw new Error('upsert requires data');
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('upsert requires an object with where/update/create');
+    }
+
+    const upsertWhere = data.where ? this.parseWhere(data.where, 0) : undefined;
+    const upsertUpdate = data.update;
+    const upsertCreate = data.create;
+
+    if (upsertWhere && upsertUpdate && typeof upsertUpdate === 'object' && !Array.isArray(upsertUpdate)) {
+      return {
+        op: 'update',
+        from,
+        where: upsertWhere,
+        patch: upsertUpdate,
+        version: obj.version,
+      } as JSONQLMutation;
+    }
+
+    if (!upsertCreate || typeof upsertCreate !== 'object' || Array.isArray(upsertCreate)) {
+      throw new Error('upsert requires create object when update path is unavailable');
+    }
+
+    return {
+      op: 'create',
+      from,
+      data: upsertCreate,
+      version: obj.version,
+    } as JSONQLMutation;
   }
 
   /**
@@ -531,6 +639,8 @@ export class JSONQLParser {
   }
 
   private isValidIdentifier(id: string): boolean {
+    // Allow * as a wildcard for all fields
+    if (id === '*') return true;
     // Allow dot notation for nested fields (e.g. "author.name")
     return /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/.test(id);
   }

@@ -1,5 +1,5 @@
 import sqlite3 from 'sqlite3';
-import { DatabaseDriver } from './types';
+import { DatabaseDriver } from '../driver';
 
 export class SQLiteDriver implements DatabaseDriver {
   dialect = 'sqlite' as const;

@@ -4,7 +4,7 @@ import { ResultHydrator } from '../hydrator';
 import { JSONQLValidator } from '../validator';
 import { AdapterOptions } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
-import { isMutation, JSONQLMutation, JSONQLStatement } from '../types';
+import { isMutation, JSONQLMutation, JSONQLQuery, JSONQLStatement, JSONQLWhere } from '../types';
 import { inferMutationFromRequest } from './utils';
 
 /**
@@ -88,8 +88,8 @@ export abstract class BaseHandler<Context = any> {
     let tableName = (query as any).from;
     tableName = this.resolveTableName(query, tableName, pathName);
 
-    // Ensure query carries the resolved table name
-    if (tableName && !(query as any).from) {
+    // Ensure query carries the resolved table name (for both queries and mutations)
+    if (tableName) {
       (query as any).from = tableName;
     }
 
@@ -155,12 +155,27 @@ export abstract class BaseHandler<Context = any> {
 
       // Execute
       let flatRows: any[] = [];
+      let prefetchedDeleteRows: any[] = [];
       const start = Date.now();
       try {
+        if (isMutationStatement && (statement as JSONQLMutation).op === 'delete') {
+          prefetchedDeleteRows = await this.fetchMutationResults(statement as JSONQLMutation);
+        }
+
         if (this.options.driver) {
           flatRows = await this.options.driver.query(sql, parameters);
         } else if (this.options.execute) {
           flatRows = await this.options.execute(sql, parameters);
+        }
+
+        // For mutations, fetch affected rows if not returned by the query
+        if (isMutationStatement && flatRows.length === 0) {
+          const mutation = statement as JSONQLMutation;
+          if (mutation.op === 'delete' && prefetchedDeleteRows.length > 0) {
+            flatRows = prefetchedDeleteRows;
+          } else {
+            flatRows = await this.fetchMutationResults(mutation);
+          }
         }
       } catch (err: any) {
         this.logger.error(`[JSONQL] Execution Error:`, err);
@@ -259,4 +274,95 @@ export abstract class BaseHandler<Context = any> {
 
     return tableName;
   }
+
+  /**
+   * Fetch mutation results after execution
+   * For databases that don't support RETURNING clause (like SQLite),
+   * we need to re-query to get the affected rows
+   */
+  private async fetchMutationResults(
+    mutation: JSONQLMutation,
+  ): Promise<any[]> {
+    const tableName = mutation.from;
+    if (!tableName || !this.transpiler) return [];
+    const transpiler = this.transpiler;
+
+    const runSelect = async (where: JSONQLWhere, limit?: number) => {
+      const selectQuery: JSONQLQuery = {
+        from: tableName,
+        where,
+        fields: ['*'],
+      };
+
+      if (limit !== undefined) {
+        selectQuery.limit = limit;
+      }
+
+      const transpiled = transpiler.transpile(selectQuery, tableName);
+      return this.executeQuery(transpiled.sql, transpiled.parameters);
+    };
+
+    try {
+      if (mutation.op === 'create') {
+        const data = Array.isArray(mutation.data) ? mutation.data : [mutation.data];
+        if (data.length === 0) return [];
+
+        const rows: any[] = [];
+        for (const row of data) {
+          if (!row || typeof row !== 'object' || Array.isArray(row)) {
+            continue;
+          }
+
+          let where: JSONQLWhere | undefined;
+          if ((row as any).id !== undefined) {
+            where = { id: { eq: (row as any).id } } as JSONQLWhere;
+          } else {
+            const eqByFields: Record<string, any> = {};
+            for (const [key, value] of Object.entries(row)) {
+              eqByFields[key] = { eq: value };
+            }
+            if (Object.keys(eqByFields).length > 0) {
+              where = eqByFields as JSONQLWhere;
+            }
+          }
+
+          if (!where) {
+            continue;
+          }
+
+          const result = await runSelect(where, 1);
+          if (result.length > 0) {
+            rows.push(result[0]);
+          }
+        }
+
+        return rows;
+      }
+
+      if (mutation.op === 'update') {
+        if (!mutation.where) return [];
+        return runSelect(mutation.where, mutation.limit);
+      }
+
+      if (mutation.op === 'delete') {
+        if (!mutation.where) return [];
+        return runSelect(mutation.where, mutation.limit);
+      }
+
+      return [];
+    } catch (err) {
+      this.logger.error('[JSONQL] Error fetching mutation results:', err);
+      return [];
+    }
+  }
+
+  private async executeQuery(sql: string, params: any[]): Promise<any[]> {
+    if (this.options.driver) {
+      return await this.options.driver.query(sql, params);
+    } else if (this.options.execute) {
+      return await this.options.execute(sql, params);
+    }
+    return [];
+  }
+
 }
