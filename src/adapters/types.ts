@@ -1,12 +1,48 @@
-import { JSONQLSchema, JSONQLStatement, ValidationResult } from '../types';
+import { JSONQLSchema, JSONQLStatement, JSONQLParserOptions, ValidationResult } from '../types';
 import { DatabaseDriver } from '../driver';
 import { Logger } from '../logger';
+import { SchemaManager } from '../schema/manager';
 
 export interface AdapterOptions<Context = any> {
   schema?: JSONQLSchema;
+
+  /**
+   * Parser options for controlling query parsing behavior.
+   * - maxNestingDepth: Maximum nesting depth for where clauses (default: 5)
+   * - maxLimit: Maximum allowed limit value (default: 1000)
+   * - allowedFields: Whitelist of field names that can be selected (empty = unrestricted)
+   * - allowedIncludes: Whitelist of relation names that can be included (empty = unrestricted)
+   */
+  parserOptions?: JSONQLParserOptions;
   schemaResolver?: (
     context: Context,
   ) => Promise<JSONQLSchema | undefined> | JSONQLSchema | undefined;
+
+  /**
+   * SchemaManager instance for automatic schema loading.
+   * The manager's `load()` is called once on first request and the result is cached.
+   * Takes effect only if `schema` and `schemaResolver` are not provided.
+   *
+   * @example
+   * ```ts
+   * const manager = new SchemaManager({
+   *   introspector: new SQLiteIntrospector(driver),
+   *   schemaFilePath: './schema.json',
+   * });
+   * new ExpressAdapter({ driver, schemaManager: manager });
+   * ```
+   */
+  schemaManager?: SchemaManager;
+
+  /**
+   * Base directory for per-request schema resolution from JSON files.
+   * When a request includes an `X-JSONQL-Schema-Path` header, the adapter
+   * loads `<schemaDir>/<headerValue>/schema.json` and uses it for that request.
+   * Falls back to the default `schema` if no header is present or file not found.
+   * Results are cached in memory.
+   */
+  schemaDir?: string;
+
   driver?: DatabaseDriver;
   execute?: (sql: string, params: any[]) => Promise<any[]>;
   dialect?: 'sqlite' | 'postgres' | 'mysql' | 'mssql';

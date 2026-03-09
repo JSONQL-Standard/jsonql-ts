@@ -4,7 +4,9 @@ import { ResultHydrator } from '../hydrator';
 import { JSONQLValidator } from '../validator';
 import { AdapterOptions } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
-import { isMutation, JSONQLMutation, JSONQLQuery, JSONQLStatement, JSONQLWhere } from '../types';
+import { isMutation, JSONQLMutation, JSONQLQuery, JSONQLSchema, JSONQLStatement, JSONQLWhere } from '../types';
+import * as fs from 'fs';
+import * as path from 'path';
 import { inferMutationFromRequest } from './utils';
 
 /**
@@ -21,9 +23,12 @@ export abstract class BaseHandler<Context = any> {
   protected hydrator: ResultHydrator | null;
   protected canExecute: boolean;
   protected logger: Logger;
+  private schemaManagerCache: JSONQLSchema | null = null;
+  private schemaManagerLoading: Promise<JSONQLSchema> | null = null;
+  private schemaDirCache = new Map<string, JSONQLSchema>();
 
   constructor(protected options: AdapterOptions<Context>) {
-    this.parser = new JSONQLParser();
+    this.parser = new JSONQLParser(options.parserOptions);
     this.canExecute = !!(options.execute || options.driver);
 
     // Infer dialect from driver if not explicitly provided
@@ -104,9 +109,7 @@ export abstract class BaseHandler<Context = any> {
     }
 
     // 7. Resolve schema
-    const resolvedSchema = this.options.schemaResolver
-      ? await this.options.schemaResolver(context)
-      : this.options.schema;
+    const resolvedSchema = await this.resolveSchema(context);
 
     // 8. Validate
     if (resolvedSchema && tableName) {
@@ -363,6 +366,76 @@ export abstract class BaseHandler<Context = any> {
       return await this.options.execute(sql, params);
     }
     return [];
+  }
+
+  /**
+   * Resolve schema using the configured strategy (in priority order):
+   * 1. schemaResolver callback (per-request, dynamic)
+   * 2. static schema object
+   * 3. schemaDir + X-JSONQL-Schema-Path header (file-based, cached)
+   * 4. schemaManager.load() (introspection-based, cached)
+   */
+  private async resolveSchema(context: Context): Promise<JSONQLSchema | undefined> {
+    // 1. Dynamic resolver takes highest priority
+    if (this.options.schemaResolver) {
+      return await this.options.schemaResolver(context);
+    }
+
+    // 2. Static schema
+    if (this.options.schema) {
+      return this.options.schema;
+    }
+
+    // 3. Schema directory — resolve from file based on request header
+    if (this.options.schemaDir) {
+      const schemaPath = this.extractSchemaPath(context);
+      if (schemaPath) {
+        const cached = this.schemaDirCache.get(schemaPath);
+        if (cached) return cached;
+
+        const filePath = path.join(this.options.schemaDir, schemaPath, 'schema.json');
+        try {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const schema = JSON.parse(content) as JSONQLSchema;
+          this.schemaDirCache.set(schemaPath, schema);
+          return schema;
+        } catch (err) {
+          this.logger.warn(`[JSONQL] Schema file not found: ${filePath}`);
+        }
+      }
+    }
+
+    // 4. SchemaManager — load once and cache
+    if (this.options.schemaManager) {
+      if (this.schemaManagerCache) {
+        return this.schemaManagerCache;
+      }
+      if (!this.schemaManagerLoading) {
+        this.schemaManagerLoading = this.options.schemaManager.load();
+      }
+      this.schemaManagerCache = await this.schemaManagerLoading;
+      return this.schemaManagerCache;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Extract schema path from request context.
+   * Looks for X-JSONQL-Schema-Path header in Express/Fastify-style contexts.
+   */
+  private extractSchemaPath(context: Context): string | undefined {
+    const ctx = context as any;
+    // Express-style: context is the request object or has .req
+    const req = ctx?.req || ctx;
+    if (req?.headers) {
+      const header = req.headers['x-jsonql-schema-path'];
+      if (typeof header === 'string' && header.length > 0) {
+        // Sanitize: strip path traversal attempts
+        return header.replace(/\.\./g, '').replace(/^\/+/, '');
+      }
+    }
+    return undefined;
   }
 
 }

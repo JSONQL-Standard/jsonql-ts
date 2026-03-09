@@ -197,6 +197,14 @@ export class JSONQLParser {
           throw new Error(`Invalid field name: "${field}"`);
         }
       }
+      if (this.options.allowedFields.length > 0) {
+        const disallowed = obj.fields.filter(
+          (f: string) => !this.options.allowedFields.includes(f),
+        );
+        if (disallowed.length > 0) {
+          throw new Error(`Fields not allowed: ${disallowed.join(', ')}`);
+        }
+      }
       query.fields = obj.fields;
     }
 
@@ -366,6 +374,14 @@ export class JSONQLParser {
         }
         if (!this.isValidIdentifier(field)) {
           throw new Error(`Invalid field name in fields: "${field}"`);
+        }
+      }
+      if (this.options.allowedFields.length > 0) {
+        const disallowed = obj.fields.filter(
+          (f: string) => !this.options.allowedFields.includes(f),
+        );
+        if (disallowed.length > 0) {
+          throw new Error(`Fields not allowed: ${disallowed.join(', ')}`);
         }
       }
       common.fields = obj.fields;

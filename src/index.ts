@@ -12,7 +12,9 @@ export * from './schema/sqlite-introspector';
 export * from './drivers/sqlite';
 export * from './drivers/postgres';
 export * from './drivers/mysql';
+export * from './drivers/mssql';
 export * from './driver';
+export * from './factory';
 
 export * from './adapters/types';
 export * from './adapters/utils';
