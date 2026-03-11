@@ -5,8 +5,8 @@ import request from 'supertest';
 import express from 'express';
 import Fastify, { FastifyInstance } from 'fastify';
 import { Test } from '@nestjs/testing';
-import { Controller, All, Req, Module, Param } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, All, Req, Res, Module, Param } from '@nestjs/common';
+import { Request, Response } from 'express';
 
 import { jsonqlExpress } from '../../../src/adapters/express';
 import { jsonqlFastify } from '../../../src/adapters/fastify';
@@ -31,8 +31,8 @@ class TestController {
   constructor(private jsonqlService: JsonqlService) {}
 
   @All(':table')
-  async handle(@Req() req: Request, @Param('table') table: string) {
-    return await this.jsonqlService.handleRequest(req, table);
+  async handle(@Req() req: Request, @Res() res: Response, @Param('table') table: string) {
+    return await this.jsonqlService.handleRequest(req, table, res);
   }
 }
 
