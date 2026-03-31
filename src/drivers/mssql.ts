@@ -26,6 +26,6 @@ export class MSSQLDriver implements DatabaseDriver {
       request.input(`p${index + 1}`, param);
     });
     const result = await request.query(sql);
-    return result.recordset;
+    return result.recordset || [];
   }
 }
