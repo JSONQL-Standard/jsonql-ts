@@ -71,12 +71,12 @@ npm install @nestjs/common @nestjs/core reflect-metadata rxjs
 
 ## Quick Start
 
-A working JSONQL API in under 30 lines:
+A working JSONQL API in under 20 lines:
 
 ```typescript
 // app.ts
 import express from 'express';
-import { jsonqlExpress, createDriver } from '@jsonql-standard/jsonql-ts';
+import { jsonqlExpress, createDriver, mustLoadSchema } from '@jsonql-standard/jsonql-ts';
 
 async function main() {
   const app = express();
@@ -84,19 +84,7 @@ async function main() {
 
   app.use('/api', jsonqlExpress({
     driver,
-    schema: {
-      tables: {
-        users: {
-          columns: {
-            id:    { type: 'integer', filterable: true },
-            name:  { type: 'text',    filterable: true, sortable: true },
-            email: { type: 'text',    filterable: true },
-            age:   { type: 'integer', filterable: true, sortable: true },
-          },
-        },
-      },
-    },
-    tables: ['users'],
+    schema: mustLoadSchema('schema.json'), // or define inline
   }));
 
   app.listen(3000, () => console.log('JSONQL API → http://localhost:3000'));
@@ -104,6 +92,27 @@ async function main() {
 
 main();
 ```
+
+<details>
+<summary>schema.json</summary>
+
+```json
+{
+  "tables": {
+    "users": {
+      "fields": {
+        "id":    { "type": "number" },
+        "name":  { "type": "string", "allowFilter": true, "allowSort": true },
+        "email": { "type": "string", "allowFilter": true },
+        "age":   { "type": "number", "allowFilter": true, "allowSort": true }
+      }
+    }
+  }
+}
+```
+</details>
+
+> **Prefer inline?** Replace `mustLoadSchema(...)` with a `{ tables: { ... } }` literal — see [Schema Validation](#schema-validation).
 
 ```bash
 export DB_DSN="postgresql://user:pass@localhost:5432/mydb"
@@ -192,20 +201,22 @@ const result = transpiler.transpile(query, 'users');
 ## Schema Validation
 
 ```typescript
-import { JSONQLValidator } from '@jsonql-standard/jsonql-ts';
+import { JSONQLValidator, mustLoadSchema } from '@jsonql-standard/jsonql-ts';
 
-const schema = {
-  tables: {
-    users: {
-      columns: {
-        id: { type: 'integer', filterable: true },
-        name: { type: 'text', filterable: true, sortable: true },
-        email: { type: 'text', filterable: true },
-        password: { type: 'text', filterable: false }, // blocked
-      },
-    },
-  },
-};
+const schema = mustLoadSchema('schema.json');
+// Or define inline:
+// const schema = {
+//   tables: {
+//     users: {
+//       fields: {
+//         id:       { type: 'number' },
+//         name:     { type: 'string', allowFilter: true, allowSort: true },
+//         email:    { type: 'string', allowFilter: true },
+//         password: { type: 'string', allowFilter: false },  // blocked
+//       },
+//     },
+//   },
+// };
 
 const validator = new JSONQLValidator(schema, 'users');
 const result = validator.validate(query);
@@ -295,6 +306,9 @@ export class AppModule {}
 | `ResultHydrator` | Flatten SQL joins → nested JSON |
 | `JSONQL` | Combined parser + validator + builder |
 | `createDriver` | Factory for database drivers |
+| `loadSchema` | Load schema from a JSON file |
+| `mustLoadSchema` | Load schema or throw on failure |
+| `envOr` | Read env var with fallback |
 | `DatabaseDriver` | Abstract database driver interface |
 | `jsonqlExpress` | Express middleware factory |
 | `jsonqlFastify` | Fastify plugin |

@@ -1,8 +1,10 @@
+import * as fs from 'fs';
 import { DatabaseDriver, JSONQLDialect } from './driver';
 import { PostgresDriver, PostgresDriverOptions } from './drivers/postgres';
 import { MySQLDriver } from './drivers/mysql';
 import { MSSQLDriver } from './drivers/mssql';
 import { SQLiteDriver } from './drivers/sqlite';
+import { JSONQLSchema } from './types';
 
 // ============================================================
 // Config types for each dialect
@@ -100,6 +102,68 @@ export async function createDriver(
       return createSQLiteDriver(config as SQLiteConfig);
     default:
       throw new Error(`Unsupported dialect: ${dialect}`);
+  }
+}
+
+// ============================================================
+// Environment helpers
+// ============================================================
+
+/**
+ * Read an environment variable, returning `fallback` when unset or empty.
+ *
+ * Mirrors Go's `jsonql.EnvOr(key, fallback)`.
+ *
+ * @example
+ * ```ts
+ * const port = envOr('PORT', '3000');
+ * const dsn  = envOr('DB_DSN', 'postgresql://localhost/mydb');
+ * ```
+ */
+export function envOr(key: string, fallback: string): string {
+  return process.env[key] || fallback;
+}
+
+// ============================================================
+// Schema loading
+// ============================================================
+
+/**
+ * Load a JSONQL schema from a JSON file.
+ *
+ * @param filePath - Path to the JSON schema file.
+ * @returns Parsed schema object.
+ * @throws If the file does not exist or contains invalid JSON.
+ *
+ * @example
+ * ```ts
+ * const schema = loadSchema('schema.json');
+ * ```
+ */
+export function loadSchema(filePath: string): JSONQLSchema {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(content) as JSONQLSchema;
+}
+
+/**
+ * Load a JSONQL schema from a JSON file, or throw a descriptive error.
+ *
+ * Intended for startup code where a missing schema is fatal.
+ *
+ * @param filePath - Path to the JSON schema file.
+ * @returns Parsed schema object.
+ * @throws Error with a descriptive message on any failure.
+ *
+ * @example
+ * ```ts
+ * const schema = mustLoadSchema('schema.json');
+ * ```
+ */
+export function mustLoadSchema(filePath: string): JSONQLSchema {
+  try {
+    return loadSchema(filePath);
+  } catch (err) {
+    throw new Error(`Failed to load schema from ${filePath}: ${err}`);
   }
 }
 
