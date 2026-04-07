@@ -19,10 +19,13 @@ describe('createDriver + Express Adapter (SQLite)', () => {
 
     app = express();
     app.use(express.json());
-    app.use('/api', jsonqlExpress({
-      driver,
-      parserOptions: { maxLimit: 50 },
-    }));
+    app.use(
+      '/api',
+      jsonqlExpress({
+        driver,
+        parserOptions: { maxLimit: 50 },
+      }),
+    );
   });
 
   it('should query users', async () => {

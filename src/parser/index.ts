@@ -393,11 +393,7 @@ export class JSONQLParser {
       if (data === undefined) {
         throw new Error('create mutation requires data');
       }
-      if (
-        typeof data !== 'object' ||
-        data === null ||
-        (Array.isArray(data) && data.length === 0)
-      ) {
+      if (typeof data !== 'object' || data === null || (Array.isArray(data) && data.length === 0)) {
         throw new Error('data must be a non-empty object or array of objects');
       }
       if (Array.isArray(data)) {
@@ -506,7 +502,12 @@ export class JSONQLParser {
     const upsertUpdate = data.update;
     const upsertCreate = data.create;
 
-    if (upsertWhere && upsertUpdate && typeof upsertUpdate === 'object' && !Array.isArray(upsertUpdate)) {
+    if (
+      upsertWhere &&
+      upsertUpdate &&
+      typeof upsertUpdate === 'object' &&
+      !Array.isArray(upsertUpdate)
+    ) {
       return {
         op: 'update',
         from,

@@ -4,7 +4,14 @@ import { ResultHydrator } from '../hydrator';
 import { JSONQLValidator } from '../validator';
 import { AdapterOptions } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
-import { isMutation, JSONQLMutation, JSONQLQuery, JSONQLSchema, JSONQLStatement, JSONQLWhere } from '../types';
+import {
+  isMutation,
+  JSONQLMutation,
+  JSONQLQuery,
+  JSONQLSchema,
+  JSONQLStatement,
+  JSONQLWhere,
+} from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { inferMutationFromRequest } from './utils';
@@ -283,9 +290,7 @@ export abstract class BaseHandler<Context = any> {
    * For databases that don't support RETURNING clause (like SQLite),
    * we need to re-query to get the affected rows
    */
-  private async fetchMutationResults(
-    mutation: JSONQLMutation,
-  ): Promise<any[]> {
+  private async fetchMutationResults(mutation: JSONQLMutation): Promise<any[]> {
     const tableName = mutation.from;
     if (!tableName || !this.transpiler) return [];
     const transpiler = this.transpiler;
@@ -437,5 +442,4 @@ export abstract class BaseHandler<Context = any> {
     }
     return undefined;
   }
-
 }

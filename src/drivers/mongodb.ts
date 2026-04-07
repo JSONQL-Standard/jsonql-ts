@@ -12,7 +12,10 @@ export interface MongoDBConnection {
 export class MongoDBDriver {
   private db: any;
 
-  constructor(private client: MongoDBConnection, private dbName: string) {
+  constructor(
+    private client: MongoDBConnection,
+    private dbName: string,
+  ) {
     this.db = client.db(dbName);
   }
 

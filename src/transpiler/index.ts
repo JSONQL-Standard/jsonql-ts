@@ -192,7 +192,9 @@ export class SQLTranspiler {
           throw new Error(`Invalid sort field: ${field}`);
         }
 
-        sortParts.push(`${quotedTableName}.${this.dialect.quoteIdentifier(field)} ${desc ? 'DESC' : 'ASC'}`);
+        sortParts.push(
+          `${quotedTableName}.${this.dialect.quoteIdentifier(field)} ${desc ? 'DESC' : 'ASC'}`,
+        );
       }
 
       if (sortParts.length > 0) {
@@ -201,7 +203,7 @@ export class SQLTranspiler {
     }
 
     // 5. LIMIT / SKIP
-    if (query.limit !== undefined && query.limit !== null || query.skip !== undefined) {
+    if ((query.limit !== undefined && query.limit !== null) || query.skip !== undefined) {
       const limit = query.limit ?? 0;
       const offset = query.skip ?? 0;
       // MSSQL requires ORDER BY for OFFSET/FETCH
@@ -667,15 +669,21 @@ export class SQLTranspiler {
           }
         }
         if ('contains' in condition) {
-          conditions.push(`LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`);
+          conditions.push(
+            `LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`,
+          );
           parameters.push(`%${(condition as any).contains}%`);
         }
         if ('starts' in condition) {
-          conditions.push(`LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`);
+          conditions.push(
+            `LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`,
+          );
           parameters.push(`${(condition as any).starts}%`);
         }
         if ('ends' in condition) {
-          conditions.push(`LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`);
+          conditions.push(
+            `LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`,
+          );
           parameters.push(`%${(condition as any).ends}`);
         }
       } else {

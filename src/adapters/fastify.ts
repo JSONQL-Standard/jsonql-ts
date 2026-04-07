@@ -5,7 +5,10 @@ import { AdapterOptions, FrameworkAdapter } from './types';
 
 export type JsonqlFastifyOptions = AdapterOptions<FastifyRequest>;
 
-export class FastifyAdapter extends BaseHandler<FastifyRequest> implements FrameworkAdapter<FastifyRequest> {
+export class FastifyAdapter
+  extends BaseHandler<FastifyRequest>
+  implements FrameworkAdapter<FastifyRequest>
+{
   constructor(options: JsonqlFastifyOptions) {
     super(options);
   }

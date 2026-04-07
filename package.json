@@ -2,8 +2,38 @@
   "name": "@jsonql-standard/jsonql-ts",
   "version": "1.0.0",
   "description": "Official Node.js SDK for JSONQL with support for Express, Fastify, and NestJS",
+  "license": "MIT",
+  "author": "JSONQL Standard",
+  "homepage": "https://jsonql.org/sdk/typescript/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JSONQL-Standard/jsonql-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JSONQL-Standard/jsonql-ts/issues"
+  },
+  "keywords": [
+    "jsonql",
+    "query",
+    "sql",
+    "mongodb",
+    "orm",
+    "express",
+    "fastify",
+    "nestjs",
+    "transpiler"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "jsonql-gen-sql": "bin/jsonql-gen-sql.js"
   },
@@ -58,5 +88,13 @@
     "fastify": "^4.0.0",
     "reflect-metadata": "^0.1.13 || ^0.2.0",
     "rxjs": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": { "optional": true },
+    "@nestjs/core": { "optional": true },
+    "express": { "optional": true },
+    "fastify": { "optional": true },
+    "reflect-metadata": { "optional": true },
+    "rxjs": { "optional": true }
   }
 }

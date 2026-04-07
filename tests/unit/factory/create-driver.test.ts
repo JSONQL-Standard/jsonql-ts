@@ -68,9 +68,7 @@ describe('createDriver', () => {
 
   describe('unsupported dialect', () => {
     it('should throw for unknown dialect', async () => {
-      await expect(createDriver('mongodb' as any)).rejects.toThrow(
-        'Unsupported dialect: mongodb',
-      );
+      await expect(createDriver('mongodb' as any)).rejects.toThrow('Unsupported dialect: mongodb');
     });
   });
 

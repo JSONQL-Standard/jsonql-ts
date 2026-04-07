@@ -102,9 +102,12 @@ export class MongoTranspiler {
 
         switch (func) {
           case 'count':
-            groupStage[alias] = field === '*' ? { $sum: 1 } : {
-              $sum: { $cond: [{ $ne: [`$${field}`, null] }, 1, 0] },
-            };
+            groupStage[alias] =
+              field === '*'
+                ? { $sum: 1 }
+                : {
+                    $sum: { $cond: [{ $ne: [`$${field}`, null] }, 1, 0] },
+                  };
             break;
           case 'sum':
             groupStage[alias] = { $sum: `$${field}` };

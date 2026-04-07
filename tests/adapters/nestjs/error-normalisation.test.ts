@@ -113,8 +113,9 @@ describe('NestJS error normalisation', () => {
 
     it('returns 200 for valid queries', async () => {
       const q = JSON.stringify({ fields: ['title', 'views'], where: { published: true } });
-      const res = await request(app.getHttpServer())
-        .get(`${base}/posts?q=${encodeURIComponent(q)}`);
+      const res = await request(app.getHttpServer()).get(
+        `${base}/posts?q=${encodeURIComponent(q)}`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBeGreaterThan(0);
@@ -127,7 +128,10 @@ describe('NestJS error normalisation', () => {
         .set('X-Test-Fail', 'plain-object');
 
       expect(res.status).toBe(400);
-      expect(res.body).toEqual({ error: 'Hook validation failed', details: 'Hook validation failed' });
+      expect(res.body).toEqual({
+        error: 'Hook validation failed',
+        details: 'Hook validation failed',
+      });
     });
 
     it('preserves status code from plain error objects', async () => {
@@ -152,8 +156,9 @@ describe('NestJS error normalisation', () => {
 
     it('normalises errors from createError() (e.g. invalid query)', async () => {
       const q = JSON.stringify({ from: 'nonexistent' });
-      const res = await request(app.getHttpServer())
-        .get(`${base}/posts?q=${encodeURIComponent(q)}`);
+      const res = await request(app.getHttpServer()).get(
+        `${base}/posts?q=${encodeURIComponent(q)}`,
+      );
 
       expect(res.status).toBeGreaterThanOrEqual(400);
       expect(res.body).toHaveProperty('error');
@@ -172,7 +177,10 @@ describe('NestJS error normalisation', () => {
         .set('X-Test-Fail', 'plain-object');
 
       expect(res.status).toBe(400);
-      expect(res.body).toEqual({ error: 'Hook validation failed', details: 'Hook validation failed' });
+      expect(res.body).toEqual({
+        error: 'Hook validation failed',
+        details: 'Hook validation failed',
+      });
     });
 
     it('preserves 403 status from hook errors via the filter', async () => {
@@ -189,9 +197,10 @@ describe('NestJS error normalisation', () => {
   // ── JsonqlExceptionFilter unit tests ──────────────────────────
   describe('JsonqlExceptionFilter', () => {
     const filter = new JsonqlExceptionFilter();
-    const mockHost = (mockRes: any) => ({
-      switchToHttp: () => ({ getResponse: () => mockRes }),
-    }) as any;
+    const mockHost = (mockRes: any) =>
+      ({
+        switchToHttp: () => ({ getResponse: () => mockRes }),
+      }) as any;
 
     it('normalises plain error objects', () => {
       const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
@@ -201,7 +210,11 @@ describe('NestJS error normalisation', () => {
     });
 
     it('normalises Error instances with status property', () => {
-      const err = Object.assign(new Error('Hook failed'), { status: 400, error: 'Hook failed', details: 'bad input' });
+      const err = Object.assign(new Error('Hook failed'), {
+        status: 400,
+        error: 'Hook failed',
+        details: 'bad input',
+      });
       const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       filter.catch(err, mockHost(res));
       expect(res.status).toHaveBeenCalledWith(400);

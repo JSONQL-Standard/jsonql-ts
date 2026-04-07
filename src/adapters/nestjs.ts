@@ -77,7 +77,11 @@ export class JsonqlService extends BaseHandler<Request> {
         try {
           rawQuery = JSON.parse((q as string) || '{}');
         } catch (e) {
-          throw { status: 400, error: 'Bad Request', details: 'Invalid JSON in query parameter "q"' };
+          throw {
+            status: 400,
+            error: 'Bad Request',
+            details: 'Invalid JSON in query parameter "q"',
+          };
         }
       } else {
         rawQuery = req.body;
@@ -110,10 +114,7 @@ export class JsonqlModule {
   static forRoot(options: JsonqlNestOptions): DynamicModule {
     return {
       module: JsonqlModule,
-      providers: [
-        { provide: JSONQL_OPTIONS, useValue: options },
-        JsonqlService,
-      ],
+      providers: [{ provide: JSONQL_OPTIONS, useValue: options }, JsonqlService],
       exports: [JsonqlService],
     };
   }
@@ -145,8 +146,8 @@ function normaliseError(err: any): { status: number; error: string; details: any
   if (typeof err?.getStatus === 'function') {
     const status: number = err.getStatus();
     const body = typeof err?.getResponse === 'function' ? err.getResponse() : {};
-    const error = typeof body === 'string' ? body : (body?.error || body?.message || 'Error');
-    const details = typeof body === 'string' ? body : (body?.details || error);
+    const error = typeof body === 'string' ? body : body?.error || body?.message || 'Error';
+    const details = typeof body === 'string' ? body : body?.details || error;
     return { status, error, details };
   }
 

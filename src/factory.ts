@@ -74,12 +74,21 @@ export type DriverConfig = PostgresConfig | MySQLConfig | MSSQLConfig | SQLiteCo
  * const adapter = new ExpressAdapter({ driver });
  * ```
  */
-export async function createDriver(dialect: 'postgres', config?: PostgresConfig): Promise<PostgresDriver>;
+export async function createDriver(
+  dialect: 'postgres',
+  config?: PostgresConfig,
+): Promise<PostgresDriver>;
 export async function createDriver(dialect: 'mysql', config?: MySQLConfig): Promise<MySQLDriver>;
 export async function createDriver(dialect: 'mssql', config?: MSSQLConfig): Promise<MSSQLDriver>;
 export async function createDriver(dialect: 'sqlite', config?: SQLiteConfig): Promise<SQLiteDriver>;
-export async function createDriver(dialect: JSONQLDialect, config?: DriverConfig): Promise<DatabaseDriver>;
-export async function createDriver(dialect: JSONQLDialect, config: DriverConfig = {}): Promise<DatabaseDriver> {
+export async function createDriver(
+  dialect: JSONQLDialect,
+  config?: DriverConfig,
+): Promise<DatabaseDriver>;
+export async function createDriver(
+  dialect: JSONQLDialect,
+  config: DriverConfig = {},
+): Promise<DatabaseDriver> {
   switch (dialect) {
     case 'postgres':
       return createPostgresDriver(config as PostgresConfig);
@@ -103,9 +112,7 @@ async function createPostgresDriver(config: PostgresConfig): Promise<PostgresDri
   try {
     pg = require('pg');
   } catch {
-    throw new Error(
-      'pg package is required for PostgreSQL. Install it with: npm install pg',
-    );
+    throw new Error('pg package is required for PostgreSQL. Install it with: npm install pg');
   }
 
   const connectionString =
@@ -120,9 +127,7 @@ async function createMySQLDriver(config: MySQLConfig): Promise<MySQLDriver> {
   try {
     mysql = require('mysql2/promise');
   } catch {
-    throw new Error(
-      'mysql2 package is required for MySQL. Install it with: npm install mysql2',
-    );
+    throw new Error('mysql2 package is required for MySQL. Install it with: npm install mysql2');
   }
 
   const pool = mysql.createPool({
@@ -144,9 +149,7 @@ async function createMSSQLDriver(config: MSSQLConfig): Promise<MSSQLDriver> {
   try {
     mssql = require('mssql');
   } catch {
-    throw new Error(
-      'mssql package is required for MSSQL. Install it with: npm install mssql',
-    );
+    throw new Error('mssql package is required for MSSQL. Install it with: npm install mssql');
   }
 
   const pool = await new mssql.ConnectionPool({
