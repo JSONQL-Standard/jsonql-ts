@@ -158,11 +158,15 @@ jobs:
           DB_TYPE=postgres \
           DB_DSN="postgresql://jsonql:password@localhost:5432/jsonql_test" \
           PORT=${{ matrix.adapter.port }} \
-          npx ts-node server.ts &
+          npm start &
           # Wait for server to be ready
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:${{ matrix.adapter.port }}/health > /dev/null 2>&1; then
-              echo "Server ready"
+            if curl -s http://localhost:${{ matrix.adapter.port }}/health 2>/dev/null | grep -q status; then
+              echo "Server ready (health endpoint)"
+              break
+            fi
+            if curl -s http://localhost:${{ matrix.adapter.port }}/users -H "Content-Type: application/json" -d '{"fields":["id"]}' 2>/dev/null | grep -q data; then
+              echo "Server ready (query endpoint)"
               break
             fi
             sleep 2
