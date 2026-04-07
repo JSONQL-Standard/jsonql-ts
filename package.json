@@ -27,15 +27,11 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "bin",
     "README.md",
     "LICENSE"
   ],
   "engines": {
     "node": ">=18"
-  },
-  "bin": {
-    "jsonql-gen-sql": "bin/jsonql-gen-sql.js"
   },
   "scripts": {
     "build": "npm run build:lib && npm run build:cli",
