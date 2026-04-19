@@ -115,6 +115,32 @@ export class JSONQLQueryBuilder {
   }
 
   /**
+   * Set the GROUP BY fields (v1.1)
+   */
+  groupBy(...fields: string[]): this {
+    this.query.groupBy = fields;
+    return this;
+  }
+
+  /**
+   * Enable DISTINCT selection (v1.1).
+   * Pass `true` for SELECT DISTINCT, or an array of field names.
+   */
+  distinct(value: boolean | string[] = true): this {
+    this.query.distinct = value;
+    return this;
+  }
+
+  /**
+   * Set aggregate definitions (v1.1).
+   * Example: `.aggregate({ total: { count: 'id' }, avg_price: { avg: 'price' } })`
+   */
+  aggregate(aggregate: Record<string, Record<string, string>>): this {
+    this.query.aggregate = aggregate;
+    return this;
+  }
+
+  /**
    * Build the query
    */
   build(): JSONQLQuery {
