@@ -131,7 +131,10 @@ export class SQLTranspiler {
 
     // When distinct is an array of field names, override SELECT to only those fields
     if (Array.isArray(query.distinct) && query.distinct.length > 0) {
-      if (selectParts.length === 0 || (selectParts.length === 1 && selectParts[0] === `${quotedTableName}.*`)) {
+      if (
+        selectParts.length === 0 ||
+        (selectParts.length === 1 && selectParts[0] === `${quotedTableName}.*`)
+      ) {
         selectParts = query.distinct.map((f: string) => {
           if (!this.isValidIdentifier(f)) {
             throw new Error(`Invalid distinct field: ${f}`);
