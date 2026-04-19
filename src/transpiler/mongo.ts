@@ -71,6 +71,51 @@ export class MongoTranspiler {
       result.skip = query.skip;
     }
 
+    // DISTINCT → aggregation pipeline with $group + $project
+    if (query.distinct && !query.aggregate) {
+      const distinctFields: string[] = Array.isArray(query.distinct)
+        ? query.distinct
+        : query.fields && query.fields.length > 0
+          ? query.fields
+          : [];
+
+      if (distinctFields.length > 0) {
+        result.operation = 'aggregate';
+        const pipeline: Record<string, any>[] = [];
+
+        if (Object.keys(result.filter).length > 0) {
+          pipeline.push({ $match: result.filter });
+        }
+
+        const groupId: Record<string, any> = {};
+        const groupStage: Record<string, any> = { _id: groupId };
+        for (const f of distinctFields) {
+          groupId[f] = `$${f}`;
+          groupStage[f] = { $first: `$${f}` };
+        }
+        pipeline.push({ $group: groupStage });
+
+        const projectStage: Record<string, any> = { _id: 0 };
+        for (const f of distinctFields) {
+          projectStage[f] = 1;
+        }
+        pipeline.push({ $project: projectStage });
+
+        if (result.sort) {
+          pipeline.push({ $sort: result.sort });
+        }
+        if (result.skip) {
+          pipeline.push({ $skip: result.skip });
+        }
+        if (result.limit) {
+          pipeline.push({ $limit: result.limit });
+        }
+
+        result.pipeline = pipeline;
+        return result;
+      }
+    }
+
     // AGGREGATE → aggregation pipeline
     if (query.aggregate) {
       result.operation = 'aggregate';
