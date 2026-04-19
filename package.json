@@ -1,6 +1,6 @@
 {
   "name": "@jsonql-standard/jsonql-ts",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Official Node.js SDK for JSONQL with support for Express, Fastify, and NestJS",
   "license": "MIT",
   "author": "JSONQL Standard",
