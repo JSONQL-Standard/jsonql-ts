@@ -12,8 +12,8 @@ export class ExpressAdapter extends BaseHandler<Request> implements FrameworkAda
     super(options);
   }
 
-  protected createError(status: number, error: string, details: any): never {
-    throw { status, error, details };
+  protected createError(status: number, error: string, details: any, errorCode?: string): never {
+    throw { status, error, details, error_code: errorCode };
   }
 
   async handleRequest(rawInput: any, req: Request): Promise<any> {
@@ -36,10 +36,14 @@ export class ExpressAdapter extends BaseHandler<Request> implements FrameworkAda
         }
       } catch (err: any) {
         const status = err.status || 400;
-        res.status(status).json({
+        const body: any = {
           error: err.error || 'Invalid JSONQL Query',
           details: err.details || err.message,
-        });
+        };
+        if (err.error_code) {
+          body.error_code = err.error_code;
+        }
+        res.status(status).json(body);
       }
     };
   }

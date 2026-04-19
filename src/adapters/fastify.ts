@@ -13,8 +13,8 @@ export class FastifyAdapter
     super(options);
   }
 
-  protected createError(status: number, error: string, details: any): never {
-    throw { status, error, details };
+  protected createError(status: number, error: string, details: any, errorCode?: string): never {
+    throw { status, error, details, error_code: errorCode };
   }
 
   async handleRequest(
@@ -51,10 +51,14 @@ export const jsonqlFastify = fp(async function (
       reply.send(result);
     } catch (err: any) {
       const status = err.status || 500;
-      reply.status(status).send({
+      const body: any = {
         error: err.error || 'Internal Server Error',
         details: err.details || err.message,
-      });
+      };
+      if (err.error_code) {
+        body.error_code = err.error_code;
+      }
+      reply.status(status).send(body);
     }
   };
 

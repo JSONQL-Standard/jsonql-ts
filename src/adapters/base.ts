@@ -58,7 +58,12 @@ export abstract class BaseHandler<Context = any> {
    * Create a framework-appropriate error to throw.
    * Express/Fastify throw plain objects; NestJS throws HttpExceptions.
    */
-  protected abstract createError(status: number, error: string, details: any): never;
+  protected abstract createError(
+    status: number,
+    error: string,
+    details: any,
+    errorCode?: string,
+  ): never;
 
   /**
    * Core pipeline: parse → validate → transpile → execute → hydrate.
@@ -89,7 +94,7 @@ export abstract class BaseHandler<Context = any> {
     try {
       query = this.parser.parse(rawQuery);
     } catch (e: any) {
-      this.createError(400, 'Invalid JSONQL Query', e.message);
+      this.createError(400, 'Invalid JSONQL Query', e.message, e.code || 'PARSE_ERROR');
     }
 
     if (this.options.afterParse) {
@@ -132,7 +137,7 @@ export abstract class BaseHandler<Context = any> {
         }
 
         if (!validation.valid) {
-          this.createError(400, 'Validation Error', validation.errors);
+          this.createError(400, 'Validation Error', validation.errors, 'VALIDATION_ERROR');
         }
       }
     }
@@ -189,7 +194,7 @@ export abstract class BaseHandler<Context = any> {
         }
       } catch (err: any) {
         this.logger.error(`[JSONQL] Execution Error:`, err);
-        this.createError(400, 'Execution Error', err.message);
+        this.createError(400, 'Execution Error', err.message, err.code || 'EXECUTION_ERROR');
       }
 
       const duration = Date.now() - start;

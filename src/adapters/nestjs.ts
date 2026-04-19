@@ -37,8 +37,8 @@ export class JsonqlService extends BaseHandler<Request> {
    *
    * Errors are caught and normalised by `handleRequest()`.
    */
-  protected createError(status: number, error: string, details: any): never {
-    throw { status, error, details };
+  protected createError(status: number, error: string, details: any, errorCode?: string): never {
+    throw { status, error, details, error_code: errorCode };
   }
 
   /**
@@ -96,15 +96,19 @@ export class JsonqlService extends BaseHandler<Request> {
       }
       return body;
     } catch (err: any) {
-      const { status, error, details } = normaliseError(err);
+      const { status, error, details, error_code } = normaliseError(err);
 
       if (res) {
-        return res.status(status).json({ error, details });
+        const body: any = { error, details };
+        if (error_code) {
+          body.error_code = error_code;
+        }
+        return res.status(status).json(body);
       }
 
       // Without res, throw a plain object for NestJS's exception layer.
       // Use JsonqlExceptionFilter to normalise the response format.
-      throw Object.assign(new Error(error), { status, error, details });
+      throw Object.assign(new Error(error), { status, error, details, error_code });
     }
   }
 }
@@ -140,22 +144,29 @@ export class JsonqlModule {
 /*  Shared error normalisation                                        */
 /* ------------------------------------------------------------------ */
 
-/** Extract { status, error, details } from any thrown value. */
-function normaliseError(err: any): { status: number; error: string; details: any } {
+/** Extract { status, error, details, error_code } from any thrown value. */
+function normaliseError(err: any): {
+  status: number;
+  error: string;
+  details: any;
+  error_code?: string;
+} {
   // Duck-type HttpException-like objects (works across module copies)
   if (typeof err?.getStatus === 'function') {
     const status: number = err.getStatus();
     const body = typeof err?.getResponse === 'function' ? err.getResponse() : {};
     const error = typeof body === 'string' ? body : body?.error || body?.message || 'Error';
     const details = typeof body === 'string' ? body : body?.details || error;
-    return { status, error, details };
+    const error_code = body?.error_code;
+    return { status, error, details, error_code };
   }
 
-  // Plain error objects: { status, error, details }
+  // Plain error objects: { status, error, details, error_code }
   const status = err?.status || HttpStatus.BAD_REQUEST;
   const error = err?.error || err?.message || 'Internal Server Error';
   const details = err?.details || err?.message || error;
-  return { status, error, details };
+  const error_code = err?.error_code;
+  return { status, error, details, error_code };
 }
 
 /**
@@ -180,7 +191,11 @@ function normaliseError(err: any): { status: number; error: string; details: any
 export class JsonqlExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse();
-    const { status, error, details } = normaliseError(exception);
-    response.status(status).json({ error, details });
+    const { status, error, details, error_code } = normaliseError(exception);
+    const body: any = { error, details };
+    if (error_code) {
+      body.error_code = error_code;
+    }
+    response.status(status).json(body);
   }
 }
