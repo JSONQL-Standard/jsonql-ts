@@ -159,19 +159,34 @@ jobs:
           DB_TYPE=postgres \
           DB_DSN="postgresql://jsonql:password@localhost:5432/jsonql_test" \
           PORT=${{ matrix.adapter.port }} \
-          npm start &
-          # Wait for server to be ready
-          for i in $(seq 1 30); do
+          npm start > "/tmp/${{ matrix.adapter.name }}.log" 2>&1 &
+          SERVER_PID=$!
+          ready=0
+          # Wait for the server to be ready before starting pytest.
+          for i in $(seq 1 90); do
             if curl -s http://localhost:${{ matrix.adapter.port }}/health 2>/dev/null | grep -q status; then
               echo "Server ready (health endpoint)"
+              ready=1
               break
             fi
             if curl -s http://localhost:${{ matrix.adapter.port }}/users -H "Content-Type: application/json" -d '{"fields":["id"]}' 2>/dev/null | grep -q data; then
               echo "Server ready (query endpoint)"
+              ready=1
               break
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Server exited before becoming ready"
+              cat "/tmp/${{ matrix.adapter.name }}.log"
+              exit 1
             fi
             sleep 2
           done
+
+          if [ "$ready" -eq 0 ]; then
+            echo "Server did not become ready in time"
+            cat "/tmp/${{ matrix.adapter.name }}.log"
+            exit 1
+          fi
 
       - name: Run compliance tests against ${{ matrix.adapter.name }}
         run: |
