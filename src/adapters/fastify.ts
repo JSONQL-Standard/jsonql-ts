@@ -27,10 +27,7 @@ export class FastifyAdapter
   }
 }
 
-const plugin: FastifyPluginAsync<JsonqlFastifyOptions> = async function (
-  fastify,
-  options,
-) {
+const plugin: FastifyPluginAsync<JsonqlFastifyOptions> = async function (fastify, options) {
   const adapter = new FastifyAdapter(options);
 
   const handler = async (req: FastifyRequest, reply: FastifyReply) => {
