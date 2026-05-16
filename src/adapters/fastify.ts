@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyRequest, FastifyReply, FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 import { BaseHandler } from './base';
 import { AdapterOptions, FrameworkAdapter } from './types';
@@ -27,9 +27,9 @@ export class FastifyAdapter
   }
 }
 
-export const jsonqlFastify = fp(async function (
-  fastify: FastifyInstance,
-  options: JsonqlFastifyOptions,
+const plugin: FastifyPluginAsync<JsonqlFastifyOptions> = async function (
+  fastify,
+  options,
 ) {
   const adapter = new FastifyAdapter(options);
 
@@ -64,4 +64,6 @@ export const jsonqlFastify = fp(async function (
 
   fastify.all('/', handler);
   fastify.all('/:table', handler);
-});
+};
+
+export const jsonqlFastify = fp(plugin);
