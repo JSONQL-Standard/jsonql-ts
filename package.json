@@ -31,7 +31,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.17"
   },
   "scripts": {
     "build": "npm run build:lib && npm run build:cli",
