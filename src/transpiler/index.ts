@@ -629,7 +629,11 @@ export class SQLTranspiler {
   }
 
   /** Build conditions for a single field key: handles object operators and implicit eq. */
-  private parseFieldCondition(quotedField: string, condition: unknown, parameters: any[]): string[] {
+  private parseFieldCondition(
+    quotedField: string,
+    condition: unknown,
+    parameters: any[],
+  ): string[] {
     if (!condition || typeof condition !== 'object' || Array.isArray(condition)) {
       return [this.implicitEq(quotedField, condition, parameters)];
     }

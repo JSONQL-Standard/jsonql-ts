@@ -15,6 +15,7 @@ export * from './drivers/mysql';
 export * from './drivers/mssql';
 export * from './driver';
 export * from './factory';
+export * from './engine';
 
 export * from './adapters/types';
 export * from './adapters/utils';
