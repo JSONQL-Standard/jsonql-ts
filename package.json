@@ -75,6 +75,7 @@
     "mysql2": "^3.16.0"
   },
   "optionalDependencies": {
+    "mongodb": "^6.3.0",
     "pg": "^8.16.3",
     "sqlite3": "^5.1.7"
   },
