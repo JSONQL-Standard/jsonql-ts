@@ -53,6 +53,25 @@ describe('JSONQLEngine builder', () => {
     // Postgres double-quotes identifiers.
     expect(receivedSql).toContain('"users"');
   });
+
+  it('does not override an explicitly set dialect when a driver is provided', async () => {
+    let receivedSql = '';
+    const driver = {
+      dialect: 'postgres' as const,
+      connect: async () => {},
+      disconnect: async () => {},
+      query: async (sql: string) => {
+        receivedSql = sql;
+        return [];
+      },
+    };
+    // Explicit sqlite must win over the postgres driver's dialect.
+    const engine = JSONQLEngine.builder().sqlite().driver(driver).build();
+    await engine.execute({ where: { id: { eq: 1 } } }, 'users');
+    // SQLite uses '?' placeholders; Postgres would use '$1'.
+    expect(receivedSql).toContain('?');
+    expect(receivedSql).not.toContain('$1');
+  });
 });
 
 describe('JSONQLEngine.execute (queries)', () => {

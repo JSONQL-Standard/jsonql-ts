@@ -670,7 +670,10 @@ export class SQLTranspiler {
     value: unknown,
     parameters: any[],
   ): string {
-    if (value === null) {
+    // Only equality/inequality have NULL-specific SQL semantics (IS [NOT] NULL).
+    // Ordering operators (>, >=, <, <=) against NULL are left as parameterised
+    // comparisons, which evaluate to UNKNOWN in SQL and correctly match nothing.
+    if (value === null && (sqlOp === '=' || sqlOp === '!=')) {
       return `${quotedField} ${sqlOp === '!=' ? 'IS NOT NULL' : 'IS NULL'}`;
     }
     if (this.isFieldReference(value)) {

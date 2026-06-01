@@ -138,6 +138,7 @@ export class JSONQLEngine {
  */
 export class EngineBuilder {
   private dialectName: JSONQLDialect = 'sqlite';
+  private _dialectExplicit = false;
   private _schema?: JSONQLSchema;
   private _driver?: DatabaseDriver;
   private _executor?: ExecuteFunc;
@@ -148,6 +149,7 @@ export class EngineBuilder {
   /** Set the SQL dialect by name. */
   dialect(name: JSONQLDialect): this {
     this.dialectName = name;
+    this._dialectExplicit = true;
     return this;
   }
 
@@ -183,7 +185,7 @@ export class EngineBuilder {
    */
   driver(driver: DatabaseDriver): this {
     this._driver = driver;
-    if (this.dialectName === 'sqlite') {
+    if (!this._dialectExplicit) {
       this.dialectName = driver.dialect;
     }
     return this;

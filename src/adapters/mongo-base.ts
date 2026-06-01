@@ -139,8 +139,10 @@ export abstract class MongoBaseHandler<Context = any> {
     // 7. Resolve schema
     const resolvedSchema = await this.resolveSchema(context);
 
-    // 8. Validate (queries only, when schema + collection fields exist)
-    if (resolvedSchema && collectionName && !isMutation(query)) {
+    // 8. Validate (queries and mutations, when schema + collection fields exist).
+    // Mirrors the SQL BaseHandler so mutations are subject to allowCreate/
+    // allowUpdate/allowDelete and field-level permission rules too.
+    if (resolvedSchema && collectionName) {
       const tableSchema = resolvedSchema.tables?.[collectionName];
       const shouldValidate = !!tableSchema?.fields;
 
