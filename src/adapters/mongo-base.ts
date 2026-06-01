@@ -4,13 +4,7 @@ import { JSONQLValidator } from '../validator';
 import { AdapterOptions } from './types';
 import { Logger, ConsoleLogger, NoOpLogger } from '../logger';
 import { inferMutationFromRequest } from './utils';
-import {
-  isMutation,
-  JSONQLMutation,
-  JSONQLQuery,
-  JSONQLSchema,
-  JSONQLStatement,
-} from '../types';
+import { isMutation, JSONQLMutation, JSONQLQuery, JSONQLSchema, JSONQLStatement } from '../types';
 
 /**
  * Minimal MongoDB collection surface used by the handler.

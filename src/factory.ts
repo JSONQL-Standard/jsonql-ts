@@ -264,14 +264,14 @@ export interface MongoConfig {
  * app.use('/', new ExpressMongoAdapter({ database: db, schema }).middleware());
  * ```
  */
-export async function connectMongo(
-  config: MongoConfig = {},
-): Promise<{ client: any; db: any }> {
+export async function connectMongo(config: MongoConfig = {}): Promise<{ client: any; db: any }> {
   let mongodb: any;
   try {
     mongodb = require('mongodb');
   } catch {
-    throw new Error('mongodb package is required for MongoDB. Install it with: npm install mongodb');
+    throw new Error(
+      'mongodb package is required for MongoDB. Install it with: npm install mongodb',
+    );
   }
 
   const uri = config.uri || process.env.DB_DSN || 'mongodb://localhost:27017';

@@ -4,10 +4,7 @@ describe('MongoTranspiler where operators', () => {
   const transpiler = new MongoTranspiler();
 
   it('maps not to $nor', () => {
-    const result = transpiler.transpile(
-      { where: { not: { status: { eq: 'active' } } } },
-      'users',
-    );
+    const result = transpiler.transpile({ where: { not: { status: { eq: 'active' } } } }, 'users');
     expect(result.filter).toEqual({ $nor: [{ status: 'active' }] });
   });
 
@@ -17,10 +14,7 @@ describe('MongoTranspiler where operators', () => {
   });
 
   it('escapes regex metacharacters for contains/starts/ends', () => {
-    const contains = transpiler.transpile(
-      { where: { name: { contains: 'a.b*' } } },
-      'users',
-    );
+    const contains = transpiler.transpile({ where: { name: { contains: 'a.b*' } } }, 'users');
     expect((contains.filter.name as Record<string, unknown>).$regex).toBe('a\\.b\\*');
 
     const starts = transpiler.transpile({ where: { name: { starts: 'a.' } } }, 'users');
