@@ -31,7 +31,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.17"
   },
   "scripts": {
     "build": "npm run build:lib && npm run build:cli",
@@ -77,7 +77,7 @@
   "optionalDependencies": {
     "mongodb": "^6.3.0",
     "pg": "^8.16.3",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^6.0.1"
   },
   "peerDependencies": {
     "@nestjs/common": "^10.0.0 || ^11.0.0",
