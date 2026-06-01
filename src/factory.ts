@@ -4,6 +4,7 @@ import { PostgresDriver, PostgresDriverOptions } from './drivers/postgres';
 import { MySQLDriver } from './drivers/mysql';
 import { MSSQLDriver } from './drivers/mssql';
 import { SQLiteDriver } from './drivers/sqlite';
+import { MongoDBDriver } from './drivers/mongodb';
 import { JSONQLSchema } from './types';
 
 // ============================================================
@@ -236,4 +237,61 @@ async function createSQLiteDriver(config: SQLiteConfig): Promise<SQLiteDriver> {
   const driver = new SQLiteDriver(filename);
   await driver.connect();
   return driver;
+}
+
+// ============================================================
+// MongoDB helpers
+// ============================================================
+
+export interface MongoConfig {
+  /** Connection URI. Defaults to env DB_DSN or 'mongodb://localhost:27017'. */
+  uri?: string;
+  /** Database name. Defaults to env DB_NAME or 'jsonql_test'. */
+  dbName?: string;
+}
+
+/**
+ * Connect to MongoDB and return the connected client and database handle.
+ *
+ * Mirrors Python's `connect_mongo(uri, db_name)`. Requires the `mongodb`
+ * package (install with `npm install mongodb`). The returned `db` can be
+ * passed directly to a MongoDB adapter's `database` option; keep `client`
+ * to close the connection on shutdown.
+ *
+ * @example
+ * ```ts
+ * const { client, db } = await connectMongo();
+ * app.use('/', new ExpressMongoAdapter({ database: db, schema }).middleware());
+ * ```
+ */
+export async function connectMongo(config: MongoConfig = {}): Promise<{ client: any; db: any }> {
+  let mongodb: any;
+  try {
+    mongodb = require('mongodb');
+  } catch {
+    throw new Error(
+      'mongodb package is required for MongoDB. Install it with: npm install mongodb',
+    );
+  }
+
+  const uri = config.uri || process.env.DB_DSN || 'mongodb://localhost:27017';
+  const dbName = config.dbName || process.env.DB_NAME || 'jsonql_test';
+
+  const client = new mongodb.MongoClient(uri);
+  await client.connect();
+  // Verify connectivity, mirroring Python's `client.admin.command('ping')`.
+  await client.db(dbName).command({ ping: 1 });
+  return { client, db: client.db(dbName) };
+}
+
+/**
+ * Create a {@link MongoDBDriver} for programmatic use, reading connection
+ * info from {@link MongoConfig} or environment variables (DB_DSN, DB_NAME).
+ *
+ * For HTTP adapters, prefer {@link connectMongo} and pass the returned `db`
+ * as the adapter's `database` option.
+ */
+export async function createMongoDriver(config: MongoConfig = {}): Promise<MongoDBDriver> {
+  const { client, db } = await connectMongo(config);
+  return new MongoDBDriver(client, db.databaseName);
 }

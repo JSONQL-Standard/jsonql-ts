@@ -13,8 +13,10 @@ export * from './drivers/sqlite';
 export * from './drivers/postgres';
 export * from './drivers/mysql';
 export * from './drivers/mssql';
+export * from './drivers/mongodb';
 export * from './driver';
 export * from './factory';
+export * from './engine';
 
 export * from './adapters/types';
 export * from './adapters/utils';
@@ -22,3 +24,7 @@ export * from './adapters/base';
 export * from './adapters/express';
 export * from './adapters/fastify';
 export * from './adapters/nestjs';
+export * from './adapters/mongo-base';
+export * from './adapters/express-mongo';
+export * from './adapters/fastify-mongo';
+export * from './adapters/nestjs-mongo';

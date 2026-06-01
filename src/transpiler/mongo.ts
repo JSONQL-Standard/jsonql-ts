@@ -7,6 +7,11 @@
 
 import { JSONQLQuery, JSONQLWhere, JSONQLMutation, JSONQLStatement, isMutation } from '../types';
 
+/** Escape regex special characters so user input is matched literally. */
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export interface MongoResult {
   collection: string;
   operation: 'find' | 'insertOne' | 'insertMany' | 'updateMany' | 'deleteMany' | 'aggregate';
@@ -244,9 +249,7 @@ export class MongoTranspiler {
 
       if (key === 'not' || key === 'NOT') {
         const subFilter = this.processWhere(value as JSONQLWhere);
-        for (const [subKey, subVal] of Object.entries(subFilter)) {
-          filter[subKey] = { $not: subVal };
-        }
+        filter.$nor = [subFilter];
         continue;
       }
 
@@ -269,8 +272,23 @@ export class MongoTranspiler {
           mongoOp.$regex = pattern;
           mongoOp.$options = 'i';
         }
+        if ('contains' in condition) {
+          mongoOp.$regex = escapeRegex(String((condition as any).contains));
+          mongoOp.$options = 'i';
+        }
+        if ('starts' in condition) {
+          mongoOp.$regex = `^${escapeRegex(String((condition as any).starts))}`;
+          mongoOp.$options = 'i';
+        }
+        if ('ends' in condition) {
+          mongoOp.$regex = `${escapeRegex(String((condition as any).ends))}$`;
+          mongoOp.$options = 'i';
+        }
         if ('in' in condition && Array.isArray(condition.in)) {
           mongoOp.$in = condition.in;
+        }
+        if ('nin' in condition && Array.isArray((condition as any).nin)) {
+          mongoOp.$nin = (condition as any).nin;
         }
         if (Object.keys(mongoOp).length > 0) {
           filter[key] = mongoOp;

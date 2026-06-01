@@ -555,45 +555,32 @@ export class SQLTranspiler {
     }
   }
 
+  // SQL operator symbols for binary comparison operators.
+  private static readonly COMPARISON_OPS: Record<string, string> = {
+    eq: '=',
+    ne: '!=',
+    neq: '!=',
+    gt: '>',
+    gte: '>=',
+    lt: '<',
+    lte: '<=',
+  };
+
+  // LIKE-pattern wrapping templates: value → SQL LIKE pattern.
+  private static readonly LIKE_OPS: Record<string, (v: unknown) => string> = {
+    contains: (v) => `%${v}%`,
+    starts: (v) => `${v}%`,
+    ends: (v) => `%${v}`,
+  };
+
   private parseWhere(where: JSONQLWhere, parameters: any[], quotedTableName?: string): string[] {
     const conditions: string[] = [];
     const prefix = quotedTableName ? `${quotedTableName}.` : '';
 
     for (const [key, value] of Object.entries(where)) {
-      // Handle Logical Operators
-      if (key === 'or' || key === 'OR') {
-        if (Array.isArray(value)) {
-          const orConditions: string[] = [];
-          for (const subWhere of value) {
-            const subConds = this.parseWhere(subWhere, parameters, quotedTableName);
-            if (subConds.length > 0) {
-              orConditions.push(`(${subConds.join(' AND ')})`);
-            }
-          }
-          if (orConditions.length > 0) {
-            conditions.push(`(${orConditions.join(' OR ')})`);
-          }
-        }
-        continue;
-      }
-
-      if (key === 'and' || key === 'AND') {
-        if (Array.isArray(value)) {
-          for (const subWhere of value) {
-            const subConds = this.parseWhere(subWhere, parameters, quotedTableName);
-            if (subConds.length > 0) {
-              conditions.push(`(${subConds.join(' AND ')})`);
-            }
-          }
-        }
-        continue;
-      }
-
-      if (key === 'not' || key === 'NOT') {
-        const subConds = this.parseWhere(value as JSONQLWhere, parameters, quotedTableName);
-        if (subConds.length > 0) {
-          conditions.push(`NOT (${subConds.join(' AND ')})`);
-        }
+      const logical = this.parseLogical(key, value, parameters, quotedTableName);
+      if (logical !== undefined) {
+        if (logical.length > 0) conditions.push(...logical);
         continue;
       }
 
@@ -602,118 +589,128 @@ export class SQLTranspiler {
       }
 
       const quotedField = `${prefix}${this.dialect.quoteIdentifier(key)}`;
-      const condition = value;
-
-      if (condition && typeof condition === 'object' && !Array.isArray(condition)) {
-        // Handle operators
-        if ('eq' in condition) {
-          if (condition.eq === null) {
-            conditions.push(`${quotedField} IS NULL`);
-          } else if (this.isFieldReference(condition.eq)) {
-            conditions.push(`${quotedField} = ${this.quoteFieldReference(condition.eq.field)}`);
-          } else {
-            conditions.push(`${quotedField} = ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition.eq);
-          }
-        }
-        if ('ne' in condition || 'neq' in condition) {
-          const val = condition.ne !== undefined ? condition.ne : (condition as any).neq;
-          if (val === null) {
-            conditions.push(`${quotedField} IS NOT NULL`);
-          } else if (this.isFieldReference(val)) {
-            conditions.push(`${quotedField} != ${this.quoteFieldReference(val.field)}`);
-          } else {
-            conditions.push(`${quotedField} != ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(val);
-          }
-        }
-        if ('gt' in condition) {
-          if (this.isFieldReference(condition.gt)) {
-            conditions.push(`${quotedField} > ${this.quoteFieldReference(condition.gt.field)}`);
-          } else {
-            conditions.push(`${quotedField} > ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition.gt);
-          }
-        }
-        if ('gte' in condition) {
-          if (this.isFieldReference(condition.gte)) {
-            conditions.push(`${quotedField} >= ${this.quoteFieldReference(condition.gte.field)}`);
-          } else {
-            conditions.push(`${quotedField} >= ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition.gte);
-          }
-        }
-        if ('lt' in condition) {
-          if (this.isFieldReference(condition.lt)) {
-            conditions.push(`${quotedField} < ${this.quoteFieldReference(condition.lt.field)}`);
-          } else {
-            conditions.push(`${quotedField} < ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition.lt);
-          }
-        }
-        if ('lte' in condition) {
-          if (this.isFieldReference(condition.lte)) {
-            conditions.push(`${quotedField} <= ${this.quoteFieldReference(condition.lte.field)}`);
-          } else {
-            conditions.push(`${quotedField} <= ${this.dialect.getPlaceholder(parameters.length)}`);
-            parameters.push(condition.lte);
-          }
-        }
-        if ('in' in condition && Array.isArray(condition.in)) {
-          if (condition.in.length === 0) {
-            conditions.push('1=0');
-          } else {
-            const placeholdersArr: string[] = [];
-            for (const v of condition.in) {
-              placeholdersArr.push(this.dialect.getPlaceholder(parameters.length));
-              parameters.push(v);
-            }
-            conditions.push(`${quotedField} IN (${placeholdersArr.join(', ')})`);
-          }
-        }
-        if ('nin' in condition && Array.isArray((condition as any).nin)) {
-          const ninValues = (condition as any).nin;
-          if (ninValues.length === 0) {
-            conditions.push('1=1');
-          } else {
-            const placeholdersArr: string[] = [];
-            for (const v of ninValues) {
-              placeholdersArr.push(this.dialect.getPlaceholder(parameters.length));
-              parameters.push(v);
-            }
-            conditions.push(`${quotedField} NOT IN (${placeholdersArr.join(', ')})`);
-          }
-        }
-        if ('contains' in condition) {
-          conditions.push(
-            `LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`,
-          );
-          parameters.push(`%${(condition as any).contains}%`);
-        }
-        if ('starts' in condition) {
-          conditions.push(
-            `LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`,
-          );
-          parameters.push(`${(condition as any).starts}%`);
-        }
-        if ('ends' in condition) {
-          conditions.push(
-            `LOWER(${quotedField}) LIKE LOWER(${this.dialect.getPlaceholder(parameters.length)})`,
-          );
-          parameters.push(`%${(condition as any).ends}`);
-        }
-      } else {
-        // Implicit eq
-        if (condition === null) {
-          conditions.push(`${quotedField} IS NULL`);
-        } else {
-          conditions.push(`${quotedField} = ${this.dialect.getPlaceholder(parameters.length)}`);
-          parameters.push(condition);
-        }
-      }
+      conditions.push(...this.parseFieldCondition(quotedField, value, parameters));
     }
 
     return conditions;
+  }
+
+  /**
+   * Handle logical operator keys (or/and/not). Returns the conditions to
+   * append, or `undefined` if `key` is not a logical operator.
+   */
+  private parseLogical(
+    key: string,
+    value: unknown,
+    parameters: any[],
+    quotedTableName: string | undefined,
+  ): string[] | undefined {
+    const norm = key.toLowerCase();
+    if (norm === 'or') {
+      if (!Array.isArray(value)) return [];
+      const orConditions = value
+        .map((sub) => this.parseWhere(sub, parameters, quotedTableName))
+        .filter((c) => c.length > 0)
+        .map((c) => `(${c.join(' AND ')})`);
+      return orConditions.length > 0 ? [`(${orConditions.join(' OR ')})`] : [];
+    }
+    if (norm === 'and') {
+      if (!Array.isArray(value)) return [];
+      return value
+        .map((sub) => this.parseWhere(sub, parameters, quotedTableName))
+        .filter((c) => c.length > 0)
+        .map((c) => `(${c.join(' AND ')})`);
+    }
+    if (norm === 'not') {
+      const subConds = this.parseWhere(value as JSONQLWhere, parameters, quotedTableName);
+      return subConds.length > 0 ? [`NOT (${subConds.join(' AND ')})`] : [];
+    }
+    return undefined;
+  }
+
+  /** Build conditions for a single field key: handles object operators and implicit eq. */
+  private parseFieldCondition(
+    quotedField: string,
+    condition: unknown,
+    parameters: any[],
+  ): string[] {
+    if (!condition || typeof condition !== 'object' || Array.isArray(condition)) {
+      return [this.implicitEq(quotedField, condition, parameters)];
+    }
+    const out: string[] = [];
+    for (const op of Object.keys(condition)) {
+      const sql = this.buildOperator(quotedField, op, (condition as any)[op], parameters);
+      if (sql !== null) out.push(sql);
+    }
+    return out;
+  }
+
+  /** Dispatch a single operator. Returns null if op is unknown. */
+  private buildOperator(
+    quotedField: string,
+    op: string,
+    value: unknown,
+    parameters: any[],
+  ): string | null {
+    if (op in SQLTranspiler.COMPARISON_OPS) {
+      return this.buildComparison(quotedField, SQLTranspiler.COMPARISON_OPS[op], value, parameters);
+    }
+    if (op === 'in') return this.buildInClause(quotedField, value, parameters, false);
+    if (op === 'nin') return this.buildInClause(quotedField, value, parameters, true);
+    if (op in SQLTranspiler.LIKE_OPS) {
+      return this.buildLikeClause(quotedField, SQLTranspiler.LIKE_OPS[op](value), parameters);
+    }
+    return null;
+  }
+
+  /** Comparison clause that handles NULL, field-references, and parameterised values uniformly. */
+  private buildComparison(
+    quotedField: string,
+    sqlOp: string,
+    value: unknown,
+    parameters: any[],
+  ): string {
+    // Only equality/inequality have NULL-specific SQL semantics (IS [NOT] NULL).
+    // Ordering operators (>, >=, <, <=) against NULL are left as parameterised
+    // comparisons, which evaluate to UNKNOWN in SQL and correctly match nothing.
+    if (value === null && (sqlOp === '=' || sqlOp === '!=')) {
+      return `${quotedField} ${sqlOp === '!=' ? 'IS NOT NULL' : 'IS NULL'}`;
+    }
+    if (this.isFieldReference(value)) {
+      return `${quotedField} ${sqlOp} ${this.quoteFieldReference(value.field)}`;
+    }
+    const placeholder = this.dialect.getPlaceholder(parameters.length);
+    parameters.push(value);
+    return `${quotedField} ${sqlOp} ${placeholder}`;
+  }
+
+  private buildInClause(
+    quotedField: string,
+    value: unknown,
+    parameters: any[],
+    negated: boolean,
+  ): string | null {
+    if (!Array.isArray(value)) return null;
+    if (value.length === 0) return negated ? '1=1' : '1=0';
+    const placeholders = value.map((v) => {
+      const ph = this.dialect.getPlaceholder(parameters.length);
+      parameters.push(v);
+      return ph;
+    });
+    return `${quotedField} ${negated ? 'NOT IN' : 'IN'} (${placeholders.join(', ')})`;
+  }
+
+  private buildLikeClause(quotedField: string, pattern: string, parameters: any[]): string {
+    const placeholder = this.dialect.getPlaceholder(parameters.length);
+    parameters.push(pattern);
+    return `LOWER(${quotedField}) LIKE LOWER(${placeholder})`;
+  }
+
+  private implicitEq(quotedField: string, value: unknown, parameters: any[]): string {
+    if (value === null) return `${quotedField} IS NULL`;
+    const placeholder = this.dialect.getPlaceholder(parameters.length);
+    parameters.push(value);
+    return `${quotedField} = ${placeholder}`;
   }
 
   private isValidIdentifier(id: string): boolean {
