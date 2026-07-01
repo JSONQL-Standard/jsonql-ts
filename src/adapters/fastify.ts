@@ -1,4 +1,4 @@
-import { FastifyRequest, FastifyReply, FastifyPluginAsync } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import fp from 'fastify-plugin';
 import { BaseHandler } from './base';
 import { AdapterOptions, FrameworkAdapter } from './types';
@@ -27,7 +27,7 @@ export class FastifyAdapter
   }
 }
 
-const plugin: FastifyPluginAsync<JsonqlFastifyOptions> = async function (fastify, options) {
+const plugin = async function (fastify: any, options: JsonqlFastifyOptions) {
   const adapter = new FastifyAdapter(options);
 
   const handler = async (req: FastifyRequest, reply: FastifyReply) => {
