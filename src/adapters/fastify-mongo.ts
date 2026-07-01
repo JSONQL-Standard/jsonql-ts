@@ -1,4 +1,4 @@
-import { FastifyRequest, FastifyReply, FastifyPluginAsync } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import fp from 'fastify-plugin';
 import { MongoBaseHandler, MongoAdapterOptions } from './mongo-base';
 import { FrameworkAdapter } from './types';
@@ -32,7 +32,7 @@ export class FastifyMongoAdapter
   }
 }
 
-const plugin: FastifyPluginAsync<JsonqlFastifyMongoOptions> = async function (fastify, options) {
+const plugin = async function (fastify: any, options: JsonqlFastifyMongoOptions) {
   const adapter = new FastifyMongoAdapter(options);
 
   const handler = async (req: FastifyRequest, reply: FastifyReply) => {
