@@ -67,9 +67,7 @@ export interface JSONQLDeleteMutation extends JSONQLMutationBase {
 export type JSONQLMutation = JSONQLCreateMutation | JSONQLUpdateMutation | JSONQLDeleteMutation;
 
 export type JSONQLLogicalOperator =
-  | { and: JSONQLWhere[] }
-  | { or: JSONQLWhere[] }
-  | { not: JSONQLWhere };
+  { and: JSONQLWhere[] } | { or: JSONQLWhere[] } | { not: JSONQLWhere };
 
 export interface JSONQLFieldConditions {
   [field: string]: JSONQLCondition;
