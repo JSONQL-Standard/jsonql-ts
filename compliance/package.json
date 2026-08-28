@@ -8,7 +8,7 @@
   "dependencies": {
     "@jsonql-standard/jsonql-ts": "file:..",
     "express": "^4.18.2",
-    "fastify": "^4.25.2",
+    "fastify": "^5.12.1",
     "pg": "^8.11.3",
     "mysql2": "^3.6.5",
     "sqlite3": "^5.1.6",
@@ -21,5 +21,12 @@
     "@types/pg": "^8.10.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
+  },
+  "overrides": {
+    "tar": "^7.5.21",
+    "ip-address": "^10.3.1",
+    "find-my-way": "^9.7.0",
+    "body-parser": "^1.20.6",
+    "brace-expansion": "^1.1.16"
   }
 }
