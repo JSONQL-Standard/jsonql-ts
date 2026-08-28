@@ -6,8 +6,8 @@
   },
   "dependencies": {
     "@jsonql-standard/jsonql-ts": "file:../../",
-    "fastify": "^4.26.1",
-    "fastify-plugin": "^4.5.1",
+    "fastify": "^5.12.1",
+    "fastify-plugin": "^5.1.0",
     "sqlite3": "^5.1.7",
     "sqlite": "^5.1.1"
   },
@@ -15,5 +15,11 @@
     "@types/node": "^20.11.24",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
+  },
+  "overrides": {
+    "tar": "^7.5.21",
+    "ip-address": "^10.3.1",
+    "find-my-way": "^9.7.0",
+    "brace-expansion": "^1.1.16"
   }
 }
